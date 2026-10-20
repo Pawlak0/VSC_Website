@@ -1,6 +1,7 @@
 {
   "banners": {
-    "fylkiNames": "under",
-    "flokkrNames": "under"
+    "clan": {
+      "banner": "/img/fylki/volsung-clan.webp"
+    }
   }
 }

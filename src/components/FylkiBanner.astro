@@ -1,7 +1,10 @@
 ---
+import Banner from './Banner.astro';
+import { glowOf, type BannerColors } from '../data/clan';
+
 interface Props {
   /** A Fylki, or a Flokkr with a slug that is unique across the site. */
-  fylki: { slug: string; name: string; banner?: string; subtitle?: string };
+  fylki: { slug: string; name: string; banner?: string; subtitle?: string; shape?: string; colors?: BannerColors };
   /** Makes the whole banner a link, for the home page. */
   href?: string;
   /** For a banner further down the page, so it does not hold up the pictures at the top. */
@@ -15,17 +18,7 @@ const Frame = href ? 'a' : 'div';
 ---
 
 <Frame class:list={['bannerframe', { linked: href }]} href={href}>
-  {
-    fylki.banner ? (
-      <div class="banner" style={morph}>
-        <img src={fylki.banner} alt={`Banner of ${fylki.name}`} loading={lazy ? 'lazy' : undefined} decoding={lazy ? 'async' : undefined} />
-      </div>
-    ) : (
-      <div class="banner todo" style={morph}>
-        <i>Banner</i>
-      </div>
-    )
-  }
+  <Banner src={fylki.banner} alt={`Banner of ${fylki.name}`} shape={fylki.shape} glow={glowOf(fylki.colors)} lazy={lazy} label style={morph} />
   <b>{fylki.name}</b>
   {fylki.subtitle && <small>{fylki.subtitle}</small>}
 </Frame>

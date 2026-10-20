@@ -121,20 +121,26 @@ a.bannerframe { color: inherit; text-decoration: none; }
 a.bannerframe .banner, a.pennant .banner { transition: transform 0.2s; }
 a.bannerframe:hover .banner, a.pennant:hover .banner { transform: translateY(-3px); }
 a.bannerframe:hover b { color: var(--gold); }
-.banner {
-  width: clamp(140px, 15vw, 180px);
-  aspect-ratio: 3 / 4.4;
-  background: var(--pitch);
-  border: 1px solid var(--line);
+.banner { position: relative; display: block; width: clamp(140px, 15vw, 180px); aspect-ratio: 3 / 4.4; }
+/* The cloth (Banner.astro) holds the picture, cut to the banner's shape by --cut (src/lib/banner-shapes.ts). */
+.banner > .cloth {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
   overflow: hidden;
+  background: var(--pitch);
+  border: 1px solid var(--line);
+  clip-path: var(--cut, none);
 }
+/* A cut edge would lose its border, so a shaped banner goes without one. */
+.banner.shaped > .cloth { border: 0; }
 .banner img { width: 100%; height: 100%; object-fit: cover; }
 /* The clan banner always keeps its own colours. */
-.banner.main { width: clamp(170px, 19vw, 230px); background: linear-gradient(90deg, #0d0d0c 0 38%, #ece6d6 38% 62%, #0d0d0c 62%); }
+.banner.main { width: clamp(170px, 19vw, 230px); }
+.banner.main > .cloth { background: linear-gradient(90deg, #0d0d0c 0 38%, #ece6d6 38% 62%, #0d0d0c 62%); }
 .banner.main .emblem { width: 22%; background: #0d0d0c; }
-.banner.todo { background: repeating-linear-gradient(135deg, var(--field) 0 10px, var(--pitch) 10px 20px); }
+.banner.todo > .cloth { background: repeating-linear-gradient(135deg, var(--field) 0 10px, var(--pitch) 10px 20px); }
 .banner.todo i {
   font-style: normal;
   font-family: var(--f-display);
@@ -143,6 +149,26 @@ a.bannerframe:hover b { color: var(--gold); }
   color: var(--muted);
   text-transform: uppercase;
 }
+/* Banners hung from a pole, when the site panel says so (class on <body> from Base.astro); the pole takes the top of
+   the box, so nothing around it moves. */
+.banner-poles .banner > .cloth { top: 7%; }
+.banner-poles .banner::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 1.5%;
+  left: -9%;
+  right: -9%;
+  height: 4%;
+  min-height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--gold) 0 6%, #5b4529 6% 94%, var(--gold) 94%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+}
+/* A banner lit in its own colours (Banner.astro), wherever a Fylki or Flokkr shows it. A drop shadow rather than a box
+   shadow, so the light follows the banner's shape. */
+.banner.glows { filter: drop-shadow(0 0 40px color-mix(in srgb, var(--glow) 45%, transparent)); }
+.pennant .banner.glows { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--glow) 50%, transparent)); }
 /* Flokkr banners, smaller than their Fylki's, with the name underneath. */
 .flokkr { display: flex; flex-wrap: wrap; justify-content: center; align-items: start; gap: 16px 24px; }
 .pennant { display: grid; justify-items: center; gap: 10px; text-decoration: none; }
@@ -158,9 +184,6 @@ a.bannerframe:hover b { color: var(--gold); }
 a.pennant b { color: var(--gold); }
 a.pennant:hover b { color: var(--ink); }
 .flokkr .none { border: 1px dashed var(--line); padding: 8px 12px; }
-/* Names above the banners instead of under them, when the site panel says so (classes on <body> from Base.astro).
-   A Fylki's short line stays under its banner, so banners side by side still line up. */
-.fylki-names-above .bannerframe > b, .flokkr-names-above .pennant > b { order: -1; }
 .textlink {
   font-family: var(--f-display);
   font-size: 14px;
@@ -177,10 +200,7 @@ a.pennant:hover b { color: var(--ink); }
    <main>: the accent takes the place of the gold, the glow lights the banner and tints the lines, and buttons and
    links turn the white of the banners. A glow of its own (class tinted) also tints the bands. */
 main.banner-colors { --gold: var(--accent); --gold-ink: var(--pitch); --banner-white: #f2ede3; }
-main.banner-colors .fylki-hero .banner {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  box-shadow: 0 0 90px 12px color-mix(in srgb, var(--glow) 26%, transparent);
-}
+main.banner-colors .fylki-hero .banner > .cloth { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
 main.banner-colors > section + section { border-top: 1px solid color-mix(in srgb, var(--glow) 38%, transparent); }
 main.banner-colors.tinted .band { background: color-mix(in srgb, var(--glow) 7%, var(--pitch)); }
 main.banner-colors .ls { background: color-mix(in srgb, var(--glow) 28%, var(--line)); border-color: color-mix(in srgb, var(--glow) 28%, var(--line)); }

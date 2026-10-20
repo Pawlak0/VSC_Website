@@ -7,7 +7,7 @@
 .jarldom .pennant { position: absolute; display: block; transform: translate(-50%, -50%); --pennant: clamp(16px, 3.6cqw, 50px); }
 .jarldom .pennant.small { --pennant: clamp(11px, 2cqw, 28px); }
 .jarldom .pennant.big { --pennant: clamp(20px, 4.8cqw, 68px); }
-.jarldom .pennant .banner { width: var(--pennant); box-shadow: 0 4px 12px rgb(0 0 0 / 0.55); }
+.jarldom .pennant .banner { width: var(--pennant); filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.55)); }
 .jarldom .pennant b,
 .jarldom a.pennant b,
 .jarldom a.pennant:hover b {
@@ -23,6 +23,8 @@
   color: #2a2016;
   filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.55));
 }
+/* A banner whose name the site panel puts above it. */
+.jarldom .pennant.name-above b { top: auto; bottom: calc(100% + 0.35em); }
 .jarldom .pennant.small b { font-size: clamp(8px, 0.85cqw, 11px); }
 .jarldom .pennant.big b { font-size: clamp(10px, 1.3cqw, 17px); }
 .jarldom .pennant b span {

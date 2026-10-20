@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { DISCORD_URL, bannerNames, fylki, jarldomMap, news, type BannerColors } from '../data/clan';
+import { DISCORD_URL, bannerLook, fylki, jarldomMap, news, glowOf, type BannerColors } from '../data/clan';
 
 interface Props {
   title?: string;
@@ -88,7 +88,7 @@ const clanData = {
       }
     </script>
   </head>
-  <body class:list={{ 'fylki-names-above': bannerNames.fylki === 'above', 'flokkr-names-above': bannerNames.flokkr === 'above' }}>
+  <body class:list={{ 'banner-poles': bannerLook.poles }}>
     <nav class="nav" aria-label="Main">
       <div class="wrap">
         <a class="brand" href="/"><i class="emblem" aria-hidden="true"></i>Völsung</a>
@@ -115,7 +115,7 @@ const clanData = {
       </div>
     </nav>
 
-    <main class:list={{ 'banner-colors': colors, tinted: colors?.glow }} style={colors && `--accent: ${colors.accent}; --glow: ${colors.glow ?? colors.accent}`}>
+    <main class:list={{ 'banner-colors': colors, tinted: colors?.glow }} style={colors && `--accent: ${colors.accent}; --glow: ${glowOf(colors)}`}>
       <slot />
     </main>
 

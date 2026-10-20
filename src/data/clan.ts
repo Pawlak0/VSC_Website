@@ -5,6 +5,7 @@ import fylkiList from './fylki.json';
 import extraPages from './pages.json';
 import siteSettings from './site.json';
 import { pageSlug } from '../lib/slug';
+import { SHAPES } from '../lib/banner-shapes';
 
 export const DISCORD_URL = 'https://discord.gg/volsung-clan';
 
@@ -100,8 +101,12 @@ export type Flokkr = {
   gallery: GalleryImage[];
   /** Where its banner stands on the map of the Jarldom; see Spot. */
   mapAt?: Spot;
+  /** Its name above its banner on the map, instead of under it. */
+  mapNameAbove?: boolean;
   /** Colours from its banner for its own page; see BannerColors. */
   colors?: BannerColors;
+  /** How the bottom of its banner is cut, an id from SHAPES in src/lib/banner-shapes.ts. Straight when empty. */
+  shape?: string;
 };
 
 /**
@@ -110,6 +115,8 @@ export type Flokkr = {
  * tints the lines and bands between the sections. The menu at the top and the footer keep the clan's gold.
  */
 export type BannerColors = { accent: string; glow?: string };
+/** The colour a banner is lit in: its glow, or its accent when it has no glow. */
+export const glowOf = (c?: BannerColors) => c && (c.glow ?? c.accent);
 
 /** A place on the map of the Jarldom, in percent of the map's width (x) and height (y) from its top left corner. */
 export type Spot = { x: number; y: number };
@@ -134,8 +141,12 @@ export type Fylki = {
   movedFrom?: string;
   /** Where its banner stands on the map of the Jarldom. */
   mapAt?: Spot;
+  /** Its name above its banner on the map. */
+  mapNameAbove?: boolean;
   /** Colours from its banner for its own page. */
   colors?: BannerColors;
+  /** How the bottom of its banner is cut. */
+  shape?: string;
 };
 
 /** What each LS role means, shown on every Fylki and Flokkr page. */
@@ -157,6 +168,7 @@ const photosOf = (list?: GalleryImage[]) => (list ?? []).filter((g) => g?.src);
 const spot = (s?: Partial<Spot>): Spot | undefined => (Number.isFinite(s?.x) && Number.isFinite(s?.y) ? { x: s!.x!, y: s!.y! } : undefined);
 const hex = (v?: string) => (/^#[0-9a-f]{6}$/i.test(v ?? '') ? v : undefined);
 const colorsOf = (c?: Partial<BannerColors>): BannerColors | undefined => (hex(c?.accent) ? { accent: c!.accent!, glow: hex(c?.glow) } : undefined);
+const shapeOf = (v?: string) => (SHAPES.some((s) => s.cut && s.id === v) ? v : undefined);
 
 // Kept in fylki.json, which the site panel at /admin/ edits. A field the panel leaves out counts as empty,
 // and a row added without a name or picture is skipped.
@@ -183,7 +195,9 @@ export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
         lore: (k.lore ?? []).filter(Boolean),
         gallery: photosOf(k.gallery),
         mapAt: spot(k.mapAt),
+        mapNameAbove: k.mapNameAbove === true,
         colors: colorsOf(k.colors),
+        shape: shapeOf(k.shape),
       })),
     ls: leadership(f.ls),
     loreTitle: f.loreTitle || undefined,
@@ -191,7 +205,9 @@ export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
     gallery: photosOf(f.gallery),
     movedFrom: f.movedFrom || undefined,
     mapAt: spot(f.mapAt),
+    mapNameAbove: f.mapNameAbove === true,
     colors: colorsOf(f.colors),
+    shape: shapeOf(f.shape),
   }));
 
 /** Whether a Flokkr has enough about it for a page of its own. */
@@ -314,6 +330,8 @@ export type Marker = {
   link?: string;
   size: PinSize;
   at: Spot;
+  /** Its name above its banner instead of under it. */
+  nameAbove: boolean;
 };
 
 /** A name written on the map itself, such as a sea or a land, in the site's lettering so Old Norse names come out right. */
@@ -338,6 +356,7 @@ type ExtraPages = {
     intro?: string;
     names?: boolean;
     clanAt?: Spot;
+    clanNameAbove?: boolean;
     markers?: Partial<Marker>[];
     labels?: Partial<MapLabel>[];
   };
@@ -366,12 +385,15 @@ export const jarldomMap = {
   on: Boolean(extra.map?.on),
   picture: extra.map?.picture || undefined,
   intro: extra.map?.intro || undefined,
-  /** Names under the banners; on a small screen they are left out anyway. */
+  /** Names by the banners, under each one unless it says above; on a small screen they are left out anyway. */
   names: extra.map?.names !== false,
   clanAt: spot(extra.map?.clanAt),
+  clanNameAbove: extra.map?.clanNameAbove === true,
   markers: (extra.map?.markers ?? [])
     .filter((m) => m?.name && spot(m.at))
-    .map((m): Marker => ({ name: m.name!, banner: m.banner || undefined, link: m.link || undefined, size: m.size ?? 'normal', at: spot(m.at)! })),
+    .map(
+      (m): Marker => ({ name: m.name!, banner: m.banner || undefined, link: m.link || undefined, size: m.size ?? 'normal', at: spot(m.at)!, nameAbove: m.nameAbove === true }),
+    ),
   labels: (extra.map?.labels ?? [])
     .filter((l) => l?.text?.trim() && spot(l.at))
     .map((l): MapLabel => ({ text: l.text!.trim(), size: l.size ?? 'normal', tilt: Number(l.tilt) || 0, light: Boolean(l.light), at: spot(l.at)! })),
@@ -426,9 +448,10 @@ export const faq: { q: string; a: string }[] = [
   },
 ];
 
-// Settings for the whole site from the site panel (site.json). `bannerNames` says whether the name of a Fylki (and the
-// clan's own banner) and of a Flokkr stands under its banner, as it always did, or above it.
-type NamePlace = 'under' | 'above';
-const settings = siteSettings as { banners?: { fylkiNames?: string; flokkrNames?: string } };
-const place = (v?: string): NamePlace => (v === 'above' ? 'above' : 'under');
-export const bannerNames = { fylki: place(settings.banners?.fylkiNames), flokkr: place(settings.banners?.flokkrNames) };
+// Settings for the whole site from the site panel (site.json): the clan's own banner (its picture, drawn in its colours
+// without one, and its shape) and whether every banner hangs from a pole.
+const settings = siteSettings as { banners?: { clan?: { banner?: string; shape?: string }; poles?: boolean } };
+export const bannerLook = {
+  clan: { banner: settings.banners?.clan?.banner || undefined, shape: shapeOf(settings.banners?.clan?.shape) },
+  poles: settings.banners?.poles === true,
+};
