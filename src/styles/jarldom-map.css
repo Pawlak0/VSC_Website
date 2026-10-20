@@ -23,8 +23,11 @@
   color: #2a2016;
   filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.55));
 }
-/* A banner whose name the site panel puts above it. */
-.jarldom .pennant.name-above b { top: auto; bottom: calc(100% + 0.35em); }
+/* A banner whose name the site panel puts above it. Written as strongly as the rules above, so the name stays up
+   when the pointer is on a banner that is a link. */
+.jarldom .pennant.name-above b,
+.jarldom a.pennant.name-above b,
+.jarldom a.pennant.name-above:hover b { top: auto; bottom: calc(100% + 0.35em); }
 .jarldom .pennant.small b { font-size: clamp(8px, 0.85cqw, 11px); }
 .jarldom .pennant.big b { font-size: clamp(10px, 1.3cqw, 17px); }
 .jarldom .pennant b span {
