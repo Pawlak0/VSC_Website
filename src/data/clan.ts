@@ -3,6 +3,7 @@ import photos from './photos.json';
 import videoList from './videos.json';
 import fylkiList from './fylki.json';
 import extraPages from './pages.json';
+import siteSettings from './site.json';
 import { pageSlug } from '../lib/slug';
 
 export const DISCORD_URL = 'https://discord.gg/volsung-clan';
@@ -409,3 +410,10 @@ export const faq: { q: string; a: string }[] = [
     a: 'The first ranks are Thrall and Folk. After that you climb the Infantry, Archer or Civilian ladder of the Skjaldborg. Promotions are earned through both your skill and your activity in the clan. They are announced at the Promotion Ceremony on the last Sunday of every month, and it is fine if you cannot make it to the ceremony.',
   },
 ];
+
+// Settings for the whole site from the site panel (site.json). `bannerNames` says whether the name of a Fylki (and the
+// clan's own banner) and of a Flokkr stands under its banner, as it always did, or above it.
+type NamePlace = 'under' | 'above';
+const settings = siteSettings as { banners?: { fylkiNames?: string; flokkrNames?: string } };
+const place = (v?: string): NamePlace => (v === 'above' ? 'above' : 'under');
+export const bannerNames = { fylki: place(settings.banners?.fylkiNames), flokkr: place(settings.banners?.flokkrNames) };

@@ -158,6 +158,9 @@ a.bannerframe:hover b { color: var(--gold); }
 a.pennant b { color: var(--gold); }
 a.pennant:hover b { color: var(--ink); }
 .flokkr .none { border: 1px dashed var(--line); padding: 8px 12px; }
+/* Names above the banners instead of under them, when the site panel says so (classes on <body> from Base.astro).
+   A Fylki's short line stays under its banner, so banners side by side still line up. */
+.fylki-names-above .bannerframe > b, .flokkr-names-above .pennant > b { order: -1; }
 .textlink {
   font-family: var(--f-display);
   font-size: 14px;
