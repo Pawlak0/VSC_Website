@@ -1,7 +1,16 @@
 {
   "news": {
-    "on": false,
-    "posts": []
+    "on": true,
+    "posts": [
+      {
+        "title": "Test",
+        "date": "2026-10-20",
+        "text": [
+          "Test"
+        ],
+        "picture": "/src/assets/gallery/banner-5.jpg"
+      }
+    ]
   },
   "map": {
     "on": true,

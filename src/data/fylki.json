@@ -25,7 +25,11 @@
           "For now, Tryggr Flokkr remained bound to its oath, serving Norðmǿrr Fylki and upholding the traditions that had forged its name.",
           "But the world was changing, and the ambitions of men would not remain confined to the lands of their ancestors.",
           "Eventually, one expedition would change the warband's future."
-        ]
+        ],
+        "mapAt": {
+          "x": 41.9,
+          "y": 15.1
+        }
       }
     ],
     "ls": {
@@ -80,7 +84,11 @@
       "For a dynasty is not measured by the years of a single reign, nor solely by the victories won beneath its banner, but by what remains when its rulers have passed and another generation inherits their burden.",
       "The crown may pass from one generation to the next, but the duty of Norðmǿrr endures."
     ],
-    "gallery": []
+    "gallery": [],
+    "mapAt": {
+      "x": 36.4,
+      "y": 17
+    }
   },
   {
     "slug": "kattegat",
@@ -116,7 +124,11 @@
       "hirdmenn": []
     },
     "lore": [],
-    "gallery": []
+    "gallery": [],
+    "mapAt": {
+      "x": 47.3,
+      "y": 67.5
+    }
   },
   {
     "slug": "orkaldalr",
@@ -158,6 +170,10 @@
       "Thanks to our advanced teamplay and experience in the game, we thrive in chaotic and dire environments where many casual players would fall. As a relatively small unit we have great mobility and autonomy on the battlefield, so we are the ones who choose the field of battle we fight on, not the enemy.",
       "Whether you are a long-term veteran or a new player, you will learn something from our training, as we never shy away from improvement: it is our ultimate goal. Bearing our colors means you also bear our pride and will, so not everyone is trusted with membership. If you truly want to join the elite brotherhood, show courage and the will to get better. Once we see that in you, we will be the ones to reach out with an invitation."
     ],
-    "gallery": []
+    "gallery": [],
+    "mapAt": {
+      "x": 51.5,
+      "y": 8.6
+    }
   }
 ]
