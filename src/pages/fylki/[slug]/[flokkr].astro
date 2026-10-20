@@ -20,7 +20,7 @@ const { fylki: f, flokkr: k } = Astro.props as { fylki: Fylki; flokkr: Flokkr };
 const others = f.flokkr.filter((o) => o.slug !== k.slug && hasPage(o));
 ---
 
-<Base title={`${k.name} Flokkr`} description={k.description ?? `${k.name}, a Flokkr of ${f.name} in The Völsung Clan.`}>
+<Base title={`${k.name} Flokkr`} description={k.description ?? `${k.name}, a Flokkr of ${f.name} in The Völsung Clan.`} colors={k.colors}>
   <section class="fylki-hero">
     <div class="wrap">
       <BackLink href={`/fylki/${f.slug}/`} label={`Back to ${f.name}`} />

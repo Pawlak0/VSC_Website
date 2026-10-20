@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { DISCORD_URL, bannerNames, fylki, jarldomMap, news } from '../data/clan';
+import { DISCORD_URL, bannerNames, fylki, jarldomMap, news, type BannerColors } from '../data/clan';
 
 interface Props {
   title?: string;
@@ -9,6 +9,8 @@ interface Props {
   image?: string;
   /** For a page search engines should leave out, such as the one for a missing address. */
   noindex?: boolean;
+  /** A Fylki or Flokkr page in the colours of its banner. */
+  colors?: BannerColors;
 }
 
 const {
@@ -16,6 +18,7 @@ const {
   description = "A Viking clan in Mount & Blade II: Bannerlord. We fight in the game's biggest events and open-world mods like Persistent Bannerlord. EU-based and newcomer friendly.",
   image = '/img/og.jpg',
   noindex = false,
+  colors,
 } = Astro.props;
 // The home page title carries the words people search for; other pages lead with their own name.
 const fullTitle = title ? `${title} · The Völsung Clan` : 'The Völsung Clan · Viking clan in Mount & Blade II: Bannerlord';
@@ -112,7 +115,7 @@ const clanData = {
       </div>
     </nav>
 
-    <main>
+    <main class:list={{ 'banner-colors': colors, tinted: colors?.glow }} style={colors && `--accent: ${colors.accent}; --glow: ${colors.glow ?? colors.accent}`}>
       <slot />
     </main>
 

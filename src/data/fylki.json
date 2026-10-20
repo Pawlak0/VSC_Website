@@ -29,6 +29,10 @@
         "mapAt": {
           "x": 41.9,
           "y": 15.1
+        },
+        "colors": {
+          "accent": "#dca22a",
+          "glow": "#7b3fb0"
         }
       }
     ],
@@ -88,6 +92,9 @@
     "mapAt": {
       "x": 36.4,
       "y": 17
+    },
+    "colors": {
+      "accent": "#e8b24a"
     }
   },
   {
@@ -128,6 +135,10 @@
     "mapAt": {
       "x": 47.3,
       "y": 67.5
+    },
+    "colors": {
+      "accent": "#5cb4c0",
+      "glow": "#5cb4c0"
     }
   },
   {
@@ -174,6 +185,10 @@
     "mapAt": {
       "x": 51.5,
       "y": 8.6
+    },
+    "colors": {
+      "accent": "#dc4c3f",
+      "glow": "#c2302f"
     }
   }
 ]

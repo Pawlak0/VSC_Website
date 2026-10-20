@@ -26,6 +26,8 @@ type Flokkr = {
   gallery?: Photo[];
   /** Where its banner stands on the map of the Jarldom. */
   mapAt?: Spot;
+  /** Colours from its banner for its own page, as BannerColors in src/data/clan.ts. */
+  colors?: { accent: string; glow?: string };
 };
 type Fylki = Flokkr & {
   flokkr?: Flokkr[];
@@ -657,6 +659,7 @@ function promote(k: Flokkr, parent: Fylki) {
     lore: k.lore,
     gallery: k.gallery,
     mapAt: k.mapAt,
+    colors: k.colors,
     movedFrom: hasPage(k) ? `/fylki/${slugOf(parent)}/${slug}/` : undefined,
   });
   fylkiIndex = data.fylki.length - 1;
@@ -698,6 +701,43 @@ function pickFromPhotos(onPick: (p: Photo[]) => void) {
 }
 
 /** The form of a Fylki, or of one of its Flokkr when `parent` is given: both have the same fields. */
+/** The site's gold, where a new colour starts. */
+const GOLD = '#c49c55';
+
+/** One colour of the page: a box that turns it on or off, and the colour itself. */
+function colorPick(u: Flokkr, key: 'accent' | 'glow', label: string, redraw: () => void) {
+  const value = u.colors?.[key];
+  return h(
+    'label',
+    { class: 'color-pick' },
+    h('input', {
+      type: 'checkbox',
+      checked: !!value,
+      // The glow only goes with an accent.
+      disabled: key === 'glow' && !u.colors,
+      onchange: (e: Event) => {
+        if ((e.target as HTMLInputElement).checked) {
+          u.colors ??= { accent: GOLD };
+          if (key === 'glow') u.colors.glow = u.colors.accent;
+        } else if (key === 'accent') delete u.colors;
+        else delete u.colors!.glow;
+        changed();
+        redraw();
+      },
+    }),
+    h('span', {}, label),
+    h('input', {
+      type: 'color',
+      value: value ?? GOLD,
+      disabled: !value,
+      oninput: (e: Event) => {
+        u.colors![key] = (e.target as HTMLInputElement).value;
+        changed();
+      },
+    }),
+  );
+}
+
 function unitForm(u: Fylki, parent?: Fylki) {
   const what = parent ? 'Flokkr' : 'Fylki';
   const form = h('div', { class: 'fylki-form' });
@@ -725,6 +765,17 @@ function unitForm(u: Fylki, parent?: Fylki) {
               'Description',
               input(u, 'description', { area: 3 }),
               parent ? 'With a description, saga, LS or photos, the Flokkr gets its own page.' : 'One or two sentences under the name.',
+            ),
+            h(
+              'div',
+              { class: 'field' },
+              h('span', { class: 'label' }, 'Colours of its page'),
+              h('div', { class: 'color-picks' }, colorPick(u, 'accent', 'Accent', redraw), colorPick(u, 'glow', 'Glow', redraw)),
+              h(
+                'small',
+                {},
+                `Take them from the banner. The accent takes the place of the gold on the ${what} page, and the glow lights the banner and tints the page. Without them the page has the site's gold.`,
+              ),
             ),
           ),
         ),

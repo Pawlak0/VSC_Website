@@ -17,7 +17,7 @@ const { fylki: f } = Astro.props as { fylki: Fylki };
 const others = fylki.filter((o) => o.slug !== f.slug);
 ---
 
-<Base title={f.name} description={`${f.name}, a Fylki of The Völsung Clan in Mount & Blade II: Bannerlord.`}>
+<Base title={f.name} description={`${f.name}, a Fylki of The Völsung Clan in Mount & Blade II: Bannerlord.`} colors={f.colors}>
   <section class="fylki-hero">
     <div class="wrap">
       <BackLink href="/#jarldom" label="Back to the Jarldom" />
