@@ -4,9 +4,11 @@ interface Props {
   fylki: { slug: string; name: string; banner?: string; subtitle?: string };
   /** Makes the whole banner a link, for the home page. */
   href?: string;
+  /** For a banner further down the page, so it does not hold up the pictures at the top. */
+  lazy?: boolean;
 }
 
-const { fylki, href } = Astro.props;
+const { fylki, href, lazy } = Astro.props;
 // Same name on the home page and the Fylki page, so the banner morphs between them.
 const morph = `view-transition-name: banner-${fylki.slug}`;
 const Frame = href ? 'a' : 'div';
@@ -16,7 +18,7 @@ const Frame = href ? 'a' : 'div';
   {
     fylki.banner ? (
       <div class="banner" style={morph}>
-        <img src={fylki.banner} alt={`Banner of ${fylki.name}`} />
+        <img src={fylki.banner} alt={`Banner of ${fylki.name}`} loading={lazy ? 'lazy' : undefined} decoding={lazy ? 'async' : undefined} />
       </div>
     ) : (
       <div class="banner todo" style={morph}>

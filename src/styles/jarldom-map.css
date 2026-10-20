@@ -4,10 +4,10 @@
 .jarldom > img { display: block; width: 100%; height: auto; }
 
 /* The banner's middle is the point; the name hangs under it on a ribbon. */
-.jarldom .pennant { position: absolute; display: block; transform: translate(-50%, -50%); --pennant: clamp(24px, 6cqw, 84px); }
-.jarldom .pennant.small { --pennant: clamp(16px, 4cqw, 56px); }
-.jarldom .pennant.big { --pennant: clamp(30px, 8cqw, 112px); }
-.jarldom .pennant .banner { width: var(--pennant); box-shadow: 0 6px 18px rgb(0 0 0 / 0.55); }
+.jarldom .pennant { position: absolute; display: block; transform: translate(-50%, -50%); --pennant: clamp(16px, 3.6cqw, 50px); }
+.jarldom .pennant.small { --pennant: clamp(11px, 2cqw, 28px); }
+.jarldom .pennant.big { --pennant: clamp(20px, 4.8cqw, 68px); }
+.jarldom .pennant .banner { width: var(--pennant); box-shadow: 0 4px 12px rgb(0 0 0 / 0.55); }
 .jarldom .pennant b,
 .jarldom a.pennant b,
 .jarldom a.pennant:hover b {
@@ -16,15 +16,15 @@
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  font-size: clamp(10px, 1.3cqw, 16px);
+  font-size: clamp(9px, 1.05cqw, 14px);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: none;
   color: #2a2016;
   filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.55));
 }
-.jarldom .pennant.small b { font-size: clamp(9px, 1.05cqw, 13px); }
-.jarldom .pennant.big b { font-size: clamp(11px, 1.6cqw, 20px); }
+.jarldom .pennant.small b { font-size: clamp(8px, 0.85cqw, 11px); }
+.jarldom .pennant.big b { font-size: clamp(10px, 1.3cqw, 17px); }
 .jarldom .pennant b span {
   display: block;
   padding: 0.3em 1.5em;
