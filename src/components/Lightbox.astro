@@ -1,24 +1,66 @@
 ---
-// Opens gallery pictures, and any button.zoom with a data-src, full size over the page.
+// Opens gallery pictures, and any button.zoom with a data-src, full size over the page. Within a gallery the arrows,
+// the arrow keys or a swipe go to the next or previous picture.
 ---
 
 <dialog id="lightbox">
-  <img id="lb-img" src="" alt="" />
-  <form method="dialog"><span id="lb-cap"></span><button>Close</button></form>
+  <div class="stage">
+    <img id="lb-img" src="" alt="" />
+    <button type="button" class="step prev" aria-label="Previous picture"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+    <button type="button" class="step next" aria-label="Next picture"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button>
+  </div>
+  <form method="dialog"><span id="lb-cap"></span><span id="lb-count"></span><button>Close</button></form>
 </dialog>
 
 <script>
   const dlg = document.getElementById('lightbox') as HTMLDialogElement | null;
   const img = document.getElementById('lb-img') as HTMLImageElement | null;
   const cap = document.getElementById('lb-cap');
-  document.addEventListener('click', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.gallery button[data-src], button.zoom');
-    if (!b || !dlg || !img || !cap) return;
+  const count = document.getElementById('lb-count');
+  /** The pictures of the gallery that was opened, and which one shows. */
+  let list: HTMLButtonElement[] = [];
+  let at = 0;
+
+  function show(i: number) {
+    if (!img || !cap || !count || !dlg) return;
+    at = (i + list.length) % list.length;
+    const b = list[at];
     const thumb = b.querySelector('img');
+    // Cleared first, so the last picture does not linger while the next one loads.
+    img.removeAttribute('src');
     img.src = b.dataset.src ?? '';
     img.alt = thumb?.alt ?? '';
     cap.textContent = thumb?.alt ?? '';
+    count.textContent = list.length > 1 ? `${at + 1} / ${list.length}` : '';
+    dlg.classList.toggle('single', list.length < 2);
+    // The next picture loads in the background, so stepping through feels instant.
+    const next = list[(at + 1) % list.length]?.dataset.src;
+    if (next && list.length > 1) new Image().src = next;
+  }
+
+  document.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.gallery button[data-src], button.zoom');
+    if (!b || !dlg) return;
+    const gallery = b.closest('.gallery');
+    list = gallery ? Array.from(gallery.querySelectorAll<HTMLButtonElement>('button[data-src]')) : [b];
+    show(list.indexOf(b));
     dlg.showModal();
+  });
+  dlg?.querySelector('.prev')?.addEventListener('click', () => show(at - 1));
+  dlg?.querySelector('.next')?.addEventListener('click', () => show(at + 1));
+  dlg?.addEventListener('keydown', (e) => {
+    if (list.length < 2) return;
+    if (e.key === 'ArrowLeft') show(at - 1);
+    if (e.key === 'ArrowRight') show(at + 1);
+  });
+  // A swipe sideways on a phone.
+  let startX: number | null = null;
+  img?.addEventListener('pointerdown', (e) => (startX = e.clientX));
+  img?.addEventListener('pointerup', (e) => {
+    if (startX === null || list.length < 2) return;
+    const dx = e.clientX - startX;
+    startX = null;
+    if (Math.abs(dx) > 50) show(at + (dx < 0 ? 1 : -1));
   });
   dlg?.addEventListener('click', (e) => {
     if (e.target === dlg) dlg.close();
@@ -28,9 +70,31 @@
 <style>
   dialog { border: 1px solid var(--line); background: var(--pitch); padding: 8px; max-width: min(1400px, 94vw); color: var(--ink); }
   dialog::backdrop { background: rgba(0, 0, 0, 0.85); }
-  dialog img { display: block; max-width: 100%; max-height: 82vh; }
-  dialog form { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px 0; font-size: 16px; color: var(--muted); }
-  dialog button {
+  .stage { position: relative; }
+  dialog img { display: block; max-width: 100%; max-height: 82vh; touch-action: pan-y; user-select: none; }
+  .step {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: color-mix(in srgb, var(--pitch) 70%, transparent);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .step:hover { border-color: var(--gold); color: var(--gold); }
+  .step svg { width: 24px; height: 24px; stroke: currentColor; stroke-width: 1.8; fill: none; }
+  .prev { left: 10px; }
+  .next { right: 10px; }
+  dialog.single .step { display: none; }
+  dialog form { display: flex; gap: 16px; align-items: center; padding: 8px 4px 0; font-size: 16px; color: var(--muted); }
+  #lb-cap { margin-right: auto; }
+  #lb-count { font-family: var(--f-display); font-size: 13px; letter-spacing: 0.12em; white-space: nowrap; }
+  dialog form button {
     font-family: var(--f-display);
     letter-spacing: 0.14em;
     text-transform: uppercase;

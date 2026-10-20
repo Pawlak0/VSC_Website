@@ -1,0 +1,18 @@
+---
+// The way back, at the top of a subpage. When the visitor came from that very page it steps back in the browser's
+// history instead (Base.astro), so they land where they were on it rather than at the top.
+interface Props {
+  href: string;
+  label: string;
+}
+const { href, label } = Astro.props;
+---
+
+<a class="back" href={href} data-back><span aria-hidden="true">←</span>{label}</a>
+
+<style>
+  .back { display: inline-flex; align-items: center; gap: 10px; margin-bottom: clamp(20px, 3vw, 32px); font-family: var(--f-display); font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+  .back span { color: var(--gold); transition: transform 0.2s; }
+  .back:hover { color: var(--gold); }
+  .back:hover span { transform: translateX(-4px); }
+</style>

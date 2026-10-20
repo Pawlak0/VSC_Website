@@ -3,6 +3,7 @@ import Base from '../layouts/Base.astro';
 import Gallery from '../components/Gallery.astro';
 import Lightbox from '../components/Lightbox.astro';
 import VideoGrid from '../components/VideoGrid.astro';
+import BackLink from '../components/BackLink.astro';
 import { DISCORD_URL, gallery, videos } from '../data/clan';
 import { videoCards } from '../lib/videos';
 
@@ -12,6 +13,7 @@ const cards = await videoCards(videos);
 <Base title="Media" description="Videos and screenshots of The Völsung Clan in Mount & Blade II: Bannerlord: shieldwalls, cavalry charges, clan musters and battle highlights.">
   <section>
     <div class="wrap">
+      <BackLink href="/#media" label="Back to the home page" />
       <div class="head" data-stagger>
         <p class="eyebrow">The Völsung Clan</p>
         <h1>Media</h1>
