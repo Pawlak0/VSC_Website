@@ -1,0 +1,47 @@
+---
+import Base from '../layouts/Base.astro';
+import Gallery from '../components/Gallery.astro';
+import Lightbox from '../components/Lightbox.astro';
+import VideoGrid from '../components/VideoGrid.astro';
+import { DISCORD_URL, gallery, videos } from '../data/clan';
+import { videoCards } from '../lib/videos';
+
+const cards = await videoCards(videos);
+---
+
+<Base title="Media" description="Videos and screenshots of The Völsung Clan in Mount & Blade II: Bannerlord: shieldwalls, cavalry charges, clan musters and battle highlights.">
+  <section>
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">The Völsung Clan</p>
+        <h1>Media</h1>
+        <p>The clan in battle, filmed and captured by our members. Click a video or a picture to see it here.</p>
+      </div>
+      {
+        cards.length > 0 && (
+          <div class="part" id="videos">
+            <h2 data-reveal>Videos</h2>
+            <VideoGrid items={cards} />
+          </div>
+        )
+      }
+      <div class="part" id="photos">
+        <h2 data-reveal>Photos</h2>
+        <Gallery items={gallery} />
+      </div>
+      <div class="links" data-reveal>
+        <a class="textlink" href="/#media">Back to the home page</a>
+        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+      </div>
+    </div>
+  </section>
+
+  <Lightbox />
+</Base>
+
+<style>
+  h1 { font-size: clamp(36px, 7vw, 84px); font-weight: 900; letter-spacing: 0.05em; }
+  .part { margin-top: 48px; scroll-margin-top: 90px; }
+  .part h2 { font-size: clamp(24px, 3vw, 34px); margin-bottom: 18px; }
+  .links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; margin-top: 40px; }
+</style>

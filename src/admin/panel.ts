@@ -1,0 +1,941 @@
+// The site panel at /admin/. It edits src/data/photos.json, videos.json and fylki.json, the same files the site is
+// built from, and saves them with any new pictures as one commit on main; the site then rebuilds by itself.
+import { GitHub, GitHubError, OWNER, REPO, type Change } from './github';
+import { shrink, slugify } from './images';
+import { videoId } from '../lib/videos';
+
+type Size = 'normal' | 'wide' | 'big';
+type Photo = { src: string; alt: string; size?: Size; home?: boolean };
+type Video = { url: string; title?: string; by?: string; poster?: string; home?: boolean };
+type Member = { name: string; title?: string; portrait?: string };
+type Role = 'leaders' | 'thegns' | 'merkismadr' | 'hirdmenn';
+type Flokkr = { name: string; slug?: string; subtitle?: string; banner?: string; description?: string; loreTitle?: string; lore?: string[] };
+type Fylki = {
+  slug?: string;
+  name: string;
+  subtitle?: string;
+  banner?: string;
+  description?: string;
+  flokkr?: Flokkr[];
+  ls?: Partial<Record<Role, Member[]>>;
+  loreTitle?: string;
+  lore?: string[];
+  gallery?: Photo[];
+};
+type Data = { photos: Photo[]; videos: Video[]; fylki: Fylki[] };
+type Key = keyof Data;
+
+const FILES: Record<Key, string> = { photos: 'src/data/photos.json', videos: 'src/data/videos.json', fylki: 'src/data/fylki.json' };
+const NAMES: Record<Key, string> = { photos: 'photos', videos: 'videos', fylki: 'Fylki' };
+const KEYS = Object.keys(FILES) as Key[];
+const ROLES: [Role, string][] = [
+  ['leaders', 'Leadership'],
+  ['thegns', 'Thegns'],
+  ['merkismadr', 'Merkismaðr'],
+  ['hirdmenn', 'Hirðmaðr'],
+];
+// Photos are built into small copies, so they live in src/; banners and portraits are served as they are.
+const GALLERY = '/src/assets/gallery/';
+const FYLKI_IMG = '/img/fylki/';
+const TOKEN_KEY = 'vsc-panel-token';
+const TAB_KEY = 'vsc-panel-tab';
+const COLS_KEY = 'vsc-panel-cols';
+
+const repoPath = (value: string) => (value.startsWith(GALLERY) ? value.slice(1) : `public${value}`);
+const managed = (value?: string) => !!value && (value.startsWith(GALLERY) || value.startsWith(FYLKI_IMG));
+const serialize = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
+
+function store(kind: 'local' | 'session') {
+  try {
+    return kind === 'local' ? localStorage : sessionStorage;
+  } catch {
+    return null;
+  }
+}
+const remember = (key: string, value: string | null, kind: 'local' | 'session' = 'local') => {
+  try {
+    if (value === null) store(kind)?.removeItem(key);
+    else store(kind)?.setItem(key, value);
+  } catch {}
+};
+const recall = (key: string, kind: 'local' | 'session' = 'local') => {
+  try {
+    return store(kind)?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+};
+
+// ---------- state ----------
+
+let gh: GitHub;
+let login = '';
+/** The commit the panel last loaded or saved; a save builds on it. */
+let base = '';
+let data: Data = { photos: [], videos: [], fylki: [] };
+/** Each data file as it is on GitHub at `base`, to tell what changed. */
+const saved = {} as Record<Key, string>;
+/** Files in the picture folders on GitHub, as repo paths. */
+let repoFiles = new Set<string>();
+/** Pictures picked in this session and not saved yet: repo path to the shrunk file. */
+const uploads = new Map<string, Blob>();
+/** Picture values (as written in the data) to a URL the browser can show now. */
+const previews = new Map<string, string>();
+/** Built tiles of the gallery photos, from /admin/thumbs.json. */
+let thumbs: Record<string, string> = {};
+let tab: Key = (recall(TAB_KEY, 'session') as Key) || 'photos';
+let fylkiIndex = 0;
+let busy = false;
+
+// ---------- small DOM helpers ----------
+
+type Kid = Node | string | null | undefined | false;
+function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...kids: Kid[]): HTMLElementTagNameMap[K] {
+  const el = document.createElement(tag);
+  for (const k of kids) if (k !== null && k !== undefined && k !== false) el.append(k);
+  // After the children, so a select's value finds its option.
+  for (const [k, v] of Object.entries(props)) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'class') el.className = v;
+    else if (k in el) (el as any)[k] = v;
+    else el.setAttribute(k, v === true ? '' : String(v));
+  }
+  return el;
+}
+
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+/** Writes a field; an emptied optional field is left out of the file rather than kept as "". */
+function setField(obj: any, key: string, value: string, keepEmpty = false) {
+  if (value === '' && !keepEmpty) delete obj[key];
+  else obj[key] = value;
+  changed();
+}
+
+function input(obj: any, key: string, opts: { placeholder?: string; required?: boolean; area?: number; type?: string } = {}) {
+  const props = {
+    value: obj[key] ?? '',
+    placeholder: opts.placeholder ?? '',
+    'data-required': opts.required ? '1' : null,
+    oninput: (e: Event) => {
+      const el = e.target as HTMLInputElement;
+      el.classList.remove('invalid');
+      setField(obj, key, opts.area ? el.value : el.value.trimStart(), opts.required);
+    },
+  };
+  return opts.area ? h('textarea', { rows: opts.area, ...props }) : h('input', { type: opts.type ?? 'text', ...props });
+}
+
+/** A saga as one text box, paragraphs split by an empty line. */
+function sagaInput(obj: { lore?: string[] }, rows: number) {
+  return h('textarea', {
+    rows,
+    class: 'saga',
+    value: (obj.lore ?? []).join('\n\n'),
+    placeholder: 'Leave an empty line between paragraphs.',
+    oninput: (e: Event) => {
+      obj.lore = (e.target as HTMLTextAreaElement).value
+        .split(/\n\s*\n/)
+        .map((p) => p.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+      changed();
+    },
+  });
+}
+
+function select(obj: any, key: string, options: [string, string][], fallback: string) {
+  return h(
+    'select',
+    { value: obj[key] ?? fallback, onchange: (e: Event) => setField(obj, key, (e.target as HTMLSelectElement).value) },
+    ...options.map(([value, label]) => h('option', { value }, label)),
+  );
+}
+
+function toggle(obj: any, key: string, label: string, after?: () => void) {
+  return h(
+    'label',
+    { class: 'toggle' },
+    h('input', {
+      type: 'checkbox',
+      checked: !!obj[key],
+      onchange: (e: Event) => {
+        obj[key] = (e.target as HTMLInputElement).checked;
+        changed();
+        after?.();
+      },
+    }),
+    h('span', {}, label),
+  );
+}
+
+const field = (label: string, control: HTMLElement, hint?: string) =>
+  h('label', { class: 'field' }, h('span', { class: 'label' }, label), control, hint ? h('small', {}, hint) : null);
+
+function move<T>(list: T[], from: number, to: number) {
+  if (to < 0 || to > list.length) return;
+  const [item] = list.splice(from, 1);
+  list.splice(from < to ? to - 1 : to, 0, item);
+  changed();
+}
+
+/** Move and remove buttons for item `i` of `list`. */
+function tools(list: unknown[], i: number, redraw: () => void, what: string, vertical = false) {
+  return h(
+    'div',
+    { class: 'tools' },
+    h('button', { type: 'button', title: 'Move earlier', disabled: i === 0, onclick: () => (move(list, i, i - 1), redraw()) }, vertical ? '↑' : '←'),
+    h('button', { type: 'button', title: 'Move later', disabled: i === list.length - 1, onclick: () => (move(list, i, i + 2), redraw()) }, vertical ? '↓' : '→'),
+    h(
+      'button',
+      {
+        type: 'button',
+        class: 'remove',
+        title: `Remove this ${what}`,
+        onclick: () => {
+          if (!confirm(`Remove this ${what}? It goes when you save.`)) return;
+          list.splice(i, 1);
+          changed();
+          redraw();
+        },
+      },
+      'Remove',
+    ),
+  );
+}
+
+// Cards are dragged by their picture, so text in the fields can still be selected with the mouse.
+let dragging: { list: unknown[]; i: number } | null = null;
+function draggable(card: HTMLElement, handle: HTMLElement, list: unknown[], i: number, redraw: () => void) {
+  handle.addEventListener('pointerdown', () => (card.draggable = true));
+  card.addEventListener('pointerup', () => (card.draggable = false));
+  card.addEventListener('dragstart', (e) => {
+    dragging = { list, i };
+    e.dataTransfer?.setData('text/plain', String(i));
+    card.classList.add('dragging');
+  });
+  card.addEventListener('dragend', () => {
+    card.draggable = false;
+    card.classList.remove('dragging');
+  });
+  // Left or right of the card, or above or below it when each row holds one card.
+  const side = (e: DragEvent) => {
+    const r = card.getBoundingClientRect();
+    const oneRow = getComputedStyle(card.parentElement!).gridTemplateColumns.trim().split(/\s+/).length === 1;
+    if (oneRow) return e.clientY > r.top + r.height / 2 ? 'below' : 'above';
+    return e.clientX > r.left + r.width / 2 ? 'after' : 'before';
+  };
+  const marks = ['drop-before', 'drop-after', 'drop-above', 'drop-below'];
+  card.addEventListener('dragover', (e) => {
+    if (dragging?.list !== list) return;
+    e.preventDefault();
+    card.classList.remove(...marks);
+    card.classList.add(`drop-${side(e)}`);
+  });
+  card.addEventListener('dragleave', () => card.classList.remove(...marks));
+  card.addEventListener('drop', (e) => {
+    e.preventDefault();
+    card.classList.remove(...marks);
+    if (!dragging || dragging.list !== list) return;
+    const s = side(e);
+    move(list, dragging.i, i + (s === 'after' || s === 'below' ? 1 : 0));
+    dragging = null;
+    redraw();
+  });
+}
+
+// ---------- pictures ----------
+
+/** Shows a picture from the data: a fresh upload, a built tile, the live site, or straight from GitHub. */
+function showImage(img: HTMLImageElement, value?: string) {
+  if (!value) return;
+  const local = previews.get(value) ?? (value.startsWith(GALLERY) ? thumbs[value] : value);
+  img.onerror = async () => {
+    img.onerror = null;
+    try {
+      const url = URL.createObjectURL(await gh.blob(repoPath(value), base));
+      previews.set(value, url);
+      img.src = url;
+    } catch {
+      img.alt = 'Picture not found';
+    }
+  };
+  if (local) img.src = local;
+  else img.onerror(new Event('error'));
+}
+
+function uniqueValue(dir: string, name: string, ext: string) {
+  const taken = (v: string) => repoFiles.has(repoPath(v)) || uploads.has(repoPath(v)) || previews.has(v);
+  let value = `${dir}${name}.${ext}`;
+  for (let n = 2; taken(value); n++) value = `${dir}${name}-${n}.${ext}`;
+  return value;
+}
+
+/** Shrinks a picked file and keeps it for the next save. Returns the value to write in the data. */
+async function addPicture(file: File, kind: 'photo' | 'banner' | 'portrait', name = file.name) {
+  const png = kind === 'banner';
+  const blob = await shrink(file, kind === 'photo' ? 2560 : 900, png ? 'image/png' : 'image/jpeg');
+  const value = uniqueValue(kind === 'photo' ? GALLERY : FYLKI_IMG, slugify(name), png ? 'png' : 'jpg');
+  uploads.set(repoPath(value), blob);
+  previews.set(value, URL.createObjectURL(blob));
+  return value;
+}
+
+function pickFiles(multiple: boolean, then: (files: File[]) => void) {
+  const el = h('input', { type: 'file', accept: 'image/*', multiple });
+  el.addEventListener('change', () => then([...(el.files ?? [])]));
+  el.click();
+}
+
+/** Every managed picture the data points at. */
+function pictures(d: Data): Set<string> {
+  const out = new Set<string>();
+  const add = (v?: string) => managed(v) && out.add(v!);
+  d.photos.forEach((p) => add(p.src));
+  for (const f of d.fylki) {
+    add(f.banner);
+    f.flokkr?.forEach((k) => add(k.banner));
+    for (const [role] of ROLES) f.ls?.[role]?.forEach((m) => add(m.portrait));
+    f.gallery?.forEach((p) => add(p.src));
+  }
+  return out;
+}
+
+// ---------- photos ----------
+
+function photoCard(list: Photo[], i: number, withHome: boolean, redraw: () => void) {
+  const p = list[i];
+  const img = h('img', { alt: p.alt, loading: 'lazy' });
+  img.draggable = false;
+  showImage(img, p.src);
+  const pic = h('div', { class: 'pic', title: 'Drag to reorder' }, img, h('span', { class: 'num' }, String(i + 1)));
+  const card = h(
+    'article',
+    { class: `card${withHome && p.home ? ' on-home' : ''}` },
+    pic,
+    h(
+      'div',
+      { class: 'fields' },
+      field('What it shows', input(p, 'alt', { required: true, placeholder: 'e.g. Shieldwall in the rain at night' })),
+      h(
+        'div',
+        { class: 'row' },
+        field('Size', select(p, 'size', [['normal', 'Normal'], ['wide', 'Wide'], ['big', 'Big']], 'normal')),
+        withHome ? toggle(p, 'home', 'Home page', redraw) : null,
+      ),
+      tools(list, i, redraw, 'photo'),
+    ),
+  );
+  draggable(card, pic, list, i, redraw);
+  return card;
+}
+
+function photoGrid(list: Photo[], withHome: boolean) {
+  const grid = h('div', { class: 'grid' });
+  const redraw = () => grid.replaceChildren(...list.map((_, i) => photoCard(list, i, withHome, redraw)));
+  redraw();
+  return { grid, redraw };
+}
+
+function uploadPhotos(list: Photo[], redraw: () => void, status: HTMLElement) {
+  pickFiles(true, async (files) => {
+    if (!files.length) return;
+    status.textContent = `Preparing ${files.length} photo${files.length > 1 ? 's' : ''}…`;
+    const added: Photo[] = [];
+    for (const file of files) {
+      try {
+        added.push({ src: await addPicture(file, 'photo'), alt: '', size: 'normal', home: false });
+      } catch (e) {
+        alert((e as Error).message);
+      }
+    }
+    list.unshift(...added);
+    status.textContent = added.length ? 'Added at the start. Describe each one, then save.' : '';
+    changed();
+    redraw();
+    (document.querySelector('.grid input[data-required]') as HTMLInputElement | null)?.focus();
+  });
+}
+
+function photosView() {
+  const { grid, redraw } = photoGrid(data.photos, true);
+  const status = h('span', { class: 'status' });
+  const count = () => `${data.photos.length} photos, ${data.photos.filter((p) => p.home).length} on the home page`;
+  return h(
+    'section',
+    {},
+    h(
+      'div',
+      { class: 'bar' },
+      h('div', {}, h('h2', {}, 'Photos'), h('p', {}, 'Every photo shows on the Media page, in this order. Gold ones show on the home page too. Drag a picture to move it.')),
+      h('button', { type: 'button', class: 'btn btn-gold', onclick: () => uploadPhotos(data.photos, redraw, status) }, 'Add photos'),
+    ),
+    h('p', { class: 'meta' }, count(), ' ', status),
+    grid,
+  );
+}
+
+// ---------- videos ----------
+
+function videoThumb(v: Video) {
+  const id = videoId(v.url);
+  if (id) return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+  if (/^\/video\/.+\.(mp4|webm)$/i.test(v.url)) return v.poster || v.url.replace(/\.\w+$/, '.webp');
+  return '';
+}
+
+function videoCard(list: Video[], i: number, redraw: () => void) {
+  const v = list[i];
+  const img = h('img', { alt: '', loading: 'lazy', src: videoThumb(v) });
+  img.draggable = false;
+  const pic = h('div', { class: 'pic video', title: 'Drag to reorder' }, img, h('span', { class: 'num' }, String(i + 1)));
+  const url = input(v, 'url', { required: true, placeholder: 'https://www.youtube.com/watch?v=…' });
+  url.addEventListener('change', () => (img.src = videoThumb(v)));
+  const fromYouTube = videoId(v.url) ? 'From YouTube' : '';
+  const card = h(
+    'article',
+    { class: `card${v.home ? ' on-home' : ''}` },
+    pic,
+    h(
+      'div',
+      { class: 'fields' },
+      field('Link', url),
+      field('Title', input(v, 'title', { placeholder: fromYouTube || 'Title' })),
+      h('div', { class: 'row' }, field('Made by', input(v, 'by', { placeholder: fromYouTube || 'Member' })), toggle(v, 'home', 'Home page', redraw)),
+      tools(list, i, redraw, 'video'),
+    ),
+  );
+  draggable(card, pic, list, i, redraw);
+  return card;
+}
+
+function videosView() {
+  const grid = h('div', { class: 'grid' });
+  const redraw = () => grid.replaceChildren(...data.videos.map((_, i) => videoCard(data.videos, i, redraw)));
+  redraw();
+  const link = h('input', { type: 'url', placeholder: 'Paste a YouTube link' });
+  const add = () => {
+    const url = link.value.trim();
+    if (!videoId(url) && !/^\/video\/.+\.(mp4|webm)$/i.test(url)) return alert('That is not a YouTube video link.');
+    data.videos.unshift({ url, home: false });
+    link.value = '';
+    changed();
+    redraw();
+  };
+  link.addEventListener('keydown', (e) => e.key === 'Enter' && add());
+  return h(
+    'section',
+    {},
+    h(
+      'div',
+      { class: 'bar' },
+      h('div', {}, h('h2', {}, 'Videos'), h('p', {}, 'Newest first. The title and channel come from YouTube unless you write your own. Gold ones show on the home page too.')),
+      h('div', { class: 'add' }, link, h('button', { type: 'button', class: 'btn btn-gold', onclick: add }, 'Add video')),
+    ),
+    grid,
+  );
+}
+
+// ---------- Fylki ----------
+
+function bannerBox(obj: { banner?: string; name: string }, redraw: () => void, label = 'Banner') {
+  const img = h('img', { alt: '' });
+  showImage(img, obj.banner);
+  return h(
+    'div',
+    { class: 'banner-box' },
+    h('div', { class: `banner-pic${obj.banner ? '' : ' empty'}` }, obj.banner ? img : h('span', {}, label)),
+    h(
+      'div',
+      { class: 'tools' },
+      h(
+        'button',
+        {
+          type: 'button',
+          onclick: () =>
+            pickFiles(false, async ([file]) => {
+              if (!file) return;
+              obj.banner = await addPicture(file, 'banner', `${obj.name || 'banner'}-banner`);
+              changed();
+              redraw();
+            }),
+        },
+        obj.banner ? 'Replace' : 'Upload',
+      ),
+      obj.banner ? h('button', { type: 'button', class: 'remove', onclick: () => (delete obj.banner, changed(), redraw()) }, 'Remove') : null,
+    ),
+    h('small', {}, 'PNG with a clear background, as it comes from the game.'),
+  );
+}
+
+function memberRow(list: Member[], i: number, redraw: () => void) {
+  const m = list[i];
+  const img = h('img', { alt: '' });
+  showImage(img, m.portrait);
+  const portrait = h(
+    'button',
+    {
+      type: 'button',
+      class: `portrait${m.portrait ? '' : ' empty'}`,
+      title: m.portrait ? 'Replace the portrait' : 'Add a portrait (optional)',
+      onclick: () =>
+        pickFiles(false, async ([file]) => {
+          if (!file) return;
+          m.portrait = await addPicture(file, 'portrait', m.name || 'portrait');
+          changed();
+          redraw();
+        }),
+    },
+    m.portrait ? img : '+',
+  );
+  return h(
+    'div',
+    { class: 'member' },
+    portrait,
+    h('div', { class: 'fields' }, input(m, 'name', { required: true, placeholder: 'Name' }), input(m, 'title', { placeholder: 'Rank or role (optional)' })),
+    tools(list, i, redraw, 'member', true),
+    m.portrait ? h('button', { type: 'button', class: 'link', onclick: () => (delete m.portrait, changed(), redraw()) }, 'Remove portrait') : null,
+  );
+}
+
+function lsBox(f: Fylki) {
+  return h(
+    'div',
+    { class: 'ls' },
+    ...ROLES.map(([role, name]) => {
+      const col = h('div', { class: 'role' });
+      const redraw = () => {
+        const list = f.ls?.[role] ?? [];
+        col.replaceChildren(
+          h('h4', {}, name),
+          ...list.map((_, i) => memberRow(list, i, redraw)),
+          h(
+            'button',
+            {
+              type: 'button',
+              class: 'btn btn-ghost small',
+              onclick: () => {
+                ((f.ls ??= {})[role] ??= []).push({ name: '' });
+                changed();
+                redraw();
+                (col.querySelector('.member:last-of-type input') as HTMLInputElement | null)?.focus();
+              },
+            },
+            'Add',
+          ),
+        );
+      };
+      redraw();
+      return col;
+    }),
+  );
+}
+
+function flokkrBox(f: Fylki) {
+  const box = h('div', { class: 'flokkr-list' });
+  const redraw = () => {
+    const list = f.flokkr ?? [];
+    box.replaceChildren(
+      ...list.map((k, i) => {
+        const card = h('article', { class: 'flokkr' });
+        const draw = () =>
+          card.replaceChildren(
+            bannerBox(k, draw),
+            h(
+              'div',
+              { class: 'fields' },
+              field('Name', input(k, 'name', { required: true, placeholder: 'e.g. Tryggr' }), 'Without the word Flokkr.'),
+              field('Line under the banner', input(k, 'subtitle', { placeholder: 'Optional' })),
+              field('Description', input(k, 'description', { area: 3 }), 'With a description or a saga, the Flokkr gets its own page.'),
+              field('Saga title', input(k, 'loreTitle', { placeholder: 'e.g. The Sworn Warband of Norðmǿrr Fylki' })),
+              field('Saga', sagaInput(k, 8)),
+              tools(list, i, redraw, 'Flokkr'),
+            ),
+          );
+        draw();
+        return card;
+      }),
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'btn btn-ghost',
+          onclick: () => {
+            (f.flokkr ??= []).push({ name: '' });
+            changed();
+            redraw();
+          },
+        },
+        'Add Flokkr',
+      ),
+    );
+  };
+  redraw();
+  return box;
+}
+
+function pickFromPhotos(onPick: (p: Photo[]) => void) {
+  const chosen = new Set<Photo>();
+  const dialog = h('dialog', { class: 'picker' });
+  const done = () => {
+    dialog.close();
+    dialog.remove();
+  };
+  dialog.append(
+    h('h3', {}, 'Pick from the clan photos'),
+    h(
+      'div',
+      { class: 'grid picks' },
+      ...data.photos.map((p) => {
+        const img = h('img', { alt: p.alt, loading: 'lazy' });
+        showImage(img, p.src);
+        const b = h('button', { type: 'button', class: 'pick', title: p.alt }, img);
+        b.addEventListener('click', () => (chosen.has(p) ? chosen.delete(p) : chosen.add(p), b.classList.toggle('on', chosen.has(p))));
+        return b;
+      }),
+    ),
+    h(
+      'div',
+      { class: 'tools' },
+      h('button', { type: 'button', class: 'btn btn-ghost', onclick: done }, 'Cancel'),
+      h('button', { type: 'button', class: 'btn btn-gold', onclick: () => (onPick([...chosen].map((p) => ({ src: p.src, alt: p.alt, size: 'normal' }))), done()) }, 'Add picked'),
+    ),
+  );
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+function fylkiForm(f: Fylki) {
+  const form = h('div', { class: 'fylki-form' });
+  const redraw = () => {
+    const gallery = f.gallery ?? [];
+    const { grid } = photoGrid(gallery, false);
+    const status = h('span', { class: 'status' });
+    form.replaceChildren(
+      h(
+        'div',
+        { class: 'panel-box basics' },
+        bannerBox(f, redraw),
+        h(
+          'div',
+          { class: 'fields' },
+          field('Name', input(f, 'name', { required: true })),
+          field('Page address', input(f, 'slug', { placeholder: 'Made from the name' }), `The part after /fylki/ in the link. Changing it breaks links people already shared.`),
+          field('Line under the banner', input(f, 'subtitle', { placeholder: 'e.g. Fylki of the Jarl' })),
+          field('Description', input(f, 'description', { area: 3 }), 'One or two sentences under the name.'),
+        ),
+      ),
+      h('h3', {}, 'Saga'),
+      h(
+        'div',
+        { class: 'panel-box' },
+        field('Saga title', input(f, 'loreTitle', { placeholder: 'e.g. The Royal House of the North' })),
+        field('Saga', sagaInput(f, 16), 'Past four paragraphs the rest folds under “Read the whole saga”.'),
+      ),
+      h('h3', {}, 'Flokkr'),
+      flokkrBox(f),
+      h('h3', {}, 'LS (leadership)'),
+      h('p', { class: 'meta' }, 'An empty list shows as “To be announced”. The leader goes first.'),
+      lsBox(f),
+      h('h3', {}, `Photos of ${f.name || 'this Fylki'}`),
+      h(
+        'div',
+        { class: 'tools' },
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'btn btn-ghost',
+            onclick: () =>
+              pickFromPhotos((picked) => {
+                (f.gallery ??= []).push(...picked);
+                changed();
+                redraw();
+              }),
+          },
+          'Pick from clan photos',
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'btn btn-ghost',
+            onclick: () => {
+              f.gallery ??= [];
+              uploadPhotos(f.gallery, redraw, status);
+            },
+          },
+          'Upload photos',
+        ),
+        status,
+      ),
+      gallery.length ? grid : h('p', { class: 'meta' }, 'No photos yet; the section stays hidden on the page.'),
+      h(
+        'div',
+        { class: 'danger' },
+        h(
+          'button',
+          {
+            type: 'button',
+            class: 'remove',
+            onclick: () => {
+              if (!confirm(`Remove ${f.name || 'this Fylki'} and its page from the site? It goes when you save.`)) return;
+              data.fylki.splice(data.fylki.indexOf(f), 1);
+              fylkiIndex = 0;
+              changed();
+              render();
+            },
+          },
+          `Remove ${f.name || 'this Fylki'}`,
+        ),
+      ),
+    );
+  };
+  redraw();
+  return form;
+}
+
+function fylkiView() {
+  fylkiIndex = Math.min(fylkiIndex, Math.max(0, data.fylki.length - 1));
+  const f = data.fylki[fylkiIndex];
+  return h(
+    'section',
+    {},
+    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Fylki'), h('p', {}, 'Each Fylki has its own page. The order here is the order on the home page and in the menu.'))),
+    h(
+      'div',
+      { class: 'subtabs' },
+      ...data.fylki.map((x, i) =>
+        h('button', { type: 'button', class: i === fylkiIndex ? 'on' : '', onclick: () => ((fylkiIndex = i), render()) }, x.name || 'New Fylki'),
+      ),
+      fylkiIndex > 0 ? h('button', { type: 'button', class: 'link', onclick: () => (move(data.fylki, fylkiIndex, fylkiIndex - 1), fylkiIndex--, render()) }, '← Move earlier') : null,
+      h(
+        'button',
+        {
+          type: 'button',
+          class: 'link',
+          onclick: () => {
+            data.fylki.push({ name: '', description: '', flokkr: [], ls: { leaders: [], thegns: [], merkismadr: [], hirdmenn: [] }, lore: [], gallery: [] });
+            fylkiIndex = data.fylki.length - 1;
+            changed();
+            render();
+          },
+        },
+        '+ Add Fylki',
+      ),
+    ),
+    f ? fylkiForm(f) : h('p', {}, 'No Fylki yet.'),
+  );
+}
+
+// ---------- saving ----------
+
+function pending() {
+  const files = KEYS.filter((k) => serialize(data[k]) !== saved[k]);
+  const now = pictures(data);
+  const added = [...uploads.keys()].filter((p) => [...now].some((v) => repoPath(v) === p));
+  const before = pictures(Object.fromEntries(KEYS.map((k) => [k, JSON.parse(saved[k])])) as Data);
+  const removed = [...before].filter((v) => !now.has(v) && repoFiles.has(repoPath(v))).map(repoPath);
+  return { files, added, removed };
+}
+
+let scheduled = false;
+function changed() {
+  if (scheduled) return;
+  scheduled = true;
+  requestAnimationFrame(() => {
+    scheduled = false;
+    const { files, added, removed } = pending();
+    const any = files.length || added.length || removed.length;
+    const parts = [files.map((k) => NAMES[k]).join(', ')];
+    if (added.length) parts.push(`${added.length} new picture${added.length > 1 ? 's' : ''}`);
+    if (removed.length) parts.push(`${removed.length} picture${removed.length > 1 ? 's' : ''} removed`);
+    $('save-text').textContent = any ? `Unsaved changes: ${parts.filter(Boolean).join(', ')}` : 'Everything is saved.';
+    $<HTMLButtonElement>('save').disabled = !any || busy;
+    $<HTMLButtonElement>('discard').disabled = !any || busy;
+    document.body.classList.toggle('dirty', !!any);
+  });
+}
+
+function missing(): HTMLElement | null {
+  const empty = [...document.querySelectorAll<HTMLInputElement>('[data-required]')].filter((el) => !el.value.trim());
+  empty.forEach((el) => el.classList.add('invalid'));
+  if (empty.length) return empty[0];
+  // Fields on other tabs are not on the page; check the data itself.
+  const bad =
+    data.photos.some((p) => !p.alt?.trim() || !p.src) ||
+    data.videos.some((v) => !v.url?.trim()) ||
+    data.fylki.some((f) => !f.name?.trim() || f.flokkr?.some((k) => !k.name?.trim()) || ROLES.some(([r]) => f.ls?.[r]?.some((m) => !m.name?.trim())) || f.gallery?.some((p) => !p.alt?.trim()));
+  return bad ? document.body : null;
+}
+
+function message(text: string, kind: 'ok' | 'error' = 'ok') {
+  const el = $('message');
+  el.className = `message ${kind}`;
+  el.replaceChildren(text);
+  el.hidden = false;
+  if (kind === 'ok') setTimeout(() => (el.hidden = true), 8000);
+}
+
+async function save() {
+  const first = missing();
+  if (first) {
+    if (first !== document.body) first.focus();
+    return message('Some required fields are empty: every photo needs a description, every video a link, and every Fylki, Flokkr and member a name. Empty ones are marked red, or on another tab.', 'error');
+  }
+  const { files, added, removed } = pending();
+  busy = true;
+  changed();
+  $('save').textContent = 'Saving…';
+  try {
+    let parent = base;
+    const head = await gh.head();
+    if (head !== base) {
+      // Someone saved meanwhile. Fine, unless they changed a file this save also changes.
+      for (const k of files) {
+        const theirs = serialize(JSON.parse(await gh.text(FILES[k], head)));
+        if (theirs !== saved[k]) {
+          throw new Error(`Someone else saved ${NAMES[k]} after you opened the panel. Copy what you changed, reload the page, and make the change again.`);
+        }
+      }
+      parent = head;
+    }
+    const changes: Change[] = [
+      ...files.map((k) => ({ path: FILES[k], text: serialize(data[k]) })),
+      ...added.map((path) => ({ path, blob: uploads.get(path)! })),
+      ...removed.map((path) => ({ path, remove: true as const })),
+    ];
+    const what = [...files.map((k) => NAMES[k]), ...(added.length && !files.length ? ['pictures'] : [])];
+    const subject = `Update ${what.join(' and ').replace(/ and (?=.* and )/g, ', ')} from the site panel`;
+    base = await gh.commit(`${subject}\n\nSaved by ${login} at ${location.origin}/admin/.`, changes, parent);
+    for (const k of KEYS) saved[k] = serialize(data[k]);
+    added.forEach((p) => (repoFiles.add(p), uploads.delete(p)));
+    removed.forEach((p) => repoFiles.delete(p));
+    message('Saved. The site updates by itself in a minute or two.');
+  } catch (e) {
+    const err = e as Error;
+    message(err instanceof GitHubError && err.status === 409 ? 'Someone else saved at the same moment. Save again.' : err.message, 'error');
+  } finally {
+    busy = false;
+    $('save').textContent = 'Save';
+    changed();
+  }
+}
+
+function discard() {
+  if (!confirm('Throw away everything you changed since the last save?')) return;
+  data = Object.fromEntries(KEYS.map((k) => [k, JSON.parse(saved[k])])) as Data;
+  uploads.clear();
+  render();
+  changed();
+}
+
+// ---------- sign in and layout ----------
+
+/** Cards per row in the photo and video grids, kept for the next visit. */
+function setCols(n: string) {
+  document.body.dataset.cols = n;
+  remember(COLS_KEY, n);
+  document.querySelectorAll<HTMLButtonElement>('#cols button').forEach((b) => b.classList.toggle('on', b.dataset.cols === n));
+}
+
+function render() {
+  remember(TAB_KEY, tab, 'session');
+  document.querySelectorAll<HTMLButtonElement>('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+  const view = tab === 'photos' ? photosView() : tab === 'videos' ? videosView() : fylkiView();
+  $('content').replaceChildren(view);
+}
+
+async function load() {
+  base = await gh.head();
+  const [photos, videos, fylki, galleryFiles, fylkiFiles] = await Promise.all([
+    gh.text(FILES.photos, base),
+    gh.text(FILES.videos, base),
+    gh.text(FILES.fylki, base),
+    gh.list(GALLERY.slice(1, -1), base),
+    gh.list(`public${FYLKI_IMG.slice(0, -1)}`, base),
+  ]);
+  data = { photos: JSON.parse(photos), videos: JSON.parse(videos), fylki: JSON.parse(fylki) };
+  for (const k of KEYS) saved[k] = serialize(data[k]);
+  repoFiles = new Set([...galleryFiles, ...fylkiFiles]);
+  try {
+    const res = await fetch('/admin/thumbs.json', { cache: 'no-store' });
+    if (res.ok) thumbs = await res.json();
+  } catch {}
+}
+
+async function signIn(token: string, keep: boolean) {
+  const client = new GitHub(token);
+  const [user, repo] = await Promise.all([client.user(), client.repo()]);
+  if (!repo.permissions?.push) throw new Error(`${user.login} cannot change ${OWNER}/${REPO} yet. Pawlak adds you in the repository's Settings, Collaborators.`);
+  gh = client;
+  login = user.login;
+  remember(TOKEN_KEY, token, keep ? 'local' : 'session');
+  await load();
+  $('signin').hidden = true;
+  $('app').hidden = false;
+  $('who').textContent = login;
+  render();
+  changed();
+}
+
+function signOut() {
+  if (document.body.classList.contains('dirty') && !confirm('You have unsaved changes. Sign out anyway?')) return;
+  remember(TOKEN_KEY, null);
+  remember(TOKEN_KEY, null, 'session');
+  location.reload();
+}
+
+export async function start() {
+  $('tabs').addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest('button');
+    if (!b?.dataset.tab) return;
+    tab = b.dataset.tab as Key;
+    render();
+  });
+  setCols(recall(COLS_KEY) ?? '4');
+  $('cols').addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest('button');
+    if (b?.dataset.cols) setCols(b.dataset.cols);
+  });
+  $('save').addEventListener('click', save);
+  $('discard').addEventListener('click', discard);
+  $('signout').addEventListener('click', signOut);
+  window.addEventListener('beforeunload', (e) => {
+    if (document.body.classList.contains('dirty')) e.preventDefault();
+  });
+
+  const form = $<HTMLFormElement>('signin-form');
+  const error = $('signin-error');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const token = (form.elements.namedItem('token') as HTMLInputElement).value.trim();
+    const keep = (form.elements.namedItem('keep') as HTMLInputElement).checked;
+    error.hidden = true;
+    form.classList.add('busy');
+    try {
+      await signIn(token, keep);
+    } catch (err) {
+      error.textContent = err instanceof GitHubError && err.status === 401 ? 'GitHub did not accept this token. Check it was copied whole.' : (err as Error).message;
+      error.hidden = false;
+    } finally {
+      form.classList.remove('busy');
+    }
+  });
+
+  const token = recall(TOKEN_KEY) ?? recall(TOKEN_KEY, 'session');
+  if (token) {
+    try {
+      await signIn(token, recall(TOKEN_KEY) !== null);
+      return;
+    } catch (err) {
+      if (err instanceof GitHubError && err.status === 401) {
+        remember(TOKEN_KEY, null);
+        remember(TOKEN_KEY, null, 'session');
+      }
+      error.textContent = (err as Error).message;
+      error.hidden = false;
+    }
+  }
+  $('signin').hidden = false;
+}

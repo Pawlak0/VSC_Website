@@ -1,0 +1,721 @@
+---
+import Base from '../layouts/Base.astro';
+import FylkiBanner from '../components/FylkiBanner.astro';
+import FlokkrList from '../components/FlokkrList.astro';
+import Rank from '../components/Rank.astro';
+import Gallery from '../components/Gallery.astro';
+import Lightbox from '../components/Lightbox.astro';
+import VideoGrid from '../components/VideoGrid.astro';
+import { DISCORD_URL, pillars, events, CLAN_TIME_ZONE, fylki, tiers, shieldwall, folk, leaders, gallery, videos, creators, otherGames, faq } from '../data/clan';
+import { fetchCounts, inviteCode } from '../lib/discord';
+import { upcomingEvents } from '../lib/sesh';
+import { videoCards } from '../lib/videos';
+
+const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+const invite = inviteCode(DISCORD_URL);
+const counts = await fetchCounts(invite);
+const fmt = (n?: number) => (n === undefined ? '' : n.toLocaleString('en'));
+
+// The next events from the Discord calendar (started up to two hours ago, so a running event still shows).
+// While the calendar is not connected or has nothing planned, the fixed week is shown instead.
+const inZone = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-GB', { timeZone: CLAN_TIME_ZONE, ...o }).format(d);
+const now = Date.now();
+const calendar = await upcomingEvents(import.meta.env.SESH_ICS_URL, new Date(now - 2 * 3_600_000), new Date(now + 30 * 86_400_000));
+const known = (name: string) => events.find((e) => e.name.toLowerCase() === name.toLowerCase());
+const upcoming = calendar?.length
+  ? calendar.slice(0, 6).map((e) => ({ ...e, text: known(e.name)?.text ?? e.text, monthly: known(e.name)?.monthly }))
+  : null;
+
+const homeVideos = (await videoCards(videos)).filter((v) => v.home);
+
+const platforms: [string, string][] = [['youtube.com', 'YouTube'], ['youtu.be', 'YouTube'], ['twitch.tv', 'Twitch'], ['tiktok.com', 'TikTok'], ['kick.com', 'Kick']];
+const platform = (url: string) => {
+  const host = new URL(url).hostname.replace(/^www\./, '');
+  return platforms.find(([d]) => host === d || host.endsWith(`.${d}`))?.[1] ?? host;
+};
+---
+
+<Base>
+  <header class="hero" id="top">
+    <img class="bg" src="/img/hero-snow-shieldwall.webp" fetchpriority="high" alt="Painting of a Völsung shieldwall under the serpent banner in a snowy forest" />
+    <div class="wrap" data-stagger>
+      <p class="eyebrow">Mount &amp; Blade II: Bannerlord · EU</p>
+      <h1><small>The</small>Völsung Clan</h1>
+      <p class="lede">A community of Mount &amp; Blade veterans who fight in Bannerlord's biggest events and open world mods.</p>
+      <div class="ctas">
+        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+        <a class="btn btn-ghost" href="#events">{upcoming ? 'Upcoming events' : 'See the week'}</a>
+      </div>
+      <div class="facts">
+        <span>English speaking</span><span><b>3+</b> weekly events</span><span><b>500+</b> players on BRE Sunday</span><span>Newcomer friendly</span>
+      </div>
+      <a class="live" href={DISCORD_URL} target="_blank" rel="noopener" data-invite={invite} hidden={!counts}>
+        <span class="dot" aria-hidden="true"></span>
+        <span><b data-count="online">{fmt(counts?.online)}</b> online now</span>
+        <span><b data-count="members">{fmt(counts?.members)}</b> members on Discord</span>
+      </a>
+    </div>
+  </header>
+
+  <section class="sand" id="about">
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">Who we are</p>
+        <h2>Shieldwall, bowmen and riders</h2>
+        <p>We are EU-based and newcomer friendly, offering training, guides and support in a welcoming atmosphere, backed by a strong and dedicated leadership team.</p>
+      </div>
+      <div class="pillars" data-stagger>
+        {
+          pillars.map((p) => (
+            <div class="pillar">
+              <h3>{p.name}</h3>
+              <p>{p.text}</p>
+              {p.video ? (
+                <a class="media video" href={`https://www.youtube.com/watch?v=${p.video}`} target="_blank" rel="noopener" data-video={p.video} aria-label={`Play video: ${p.name}`}>
+                  <img src={p.image} alt={p.alt} loading="lazy" />
+                </a>
+              ) : (
+                <img class="media" src={p.image} alt={p.alt} loading="lazy" />
+              )}
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section id="events">
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">{upcoming ? 'Upcoming events' : 'The Völsung week'}</p>
+        <h2>Where to find us</h2>
+        <p>{upcoming ? 'Persistent Bannerlord runs every day. These are the next events on our Discord calendar.' : 'Persistent Bannerlord runs every day. These are the fixed points.'}</p>
+      </div>
+      <div class="findus" data-reveal>
+        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Find us on Discord</a>
+      </div>
+      {
+        upcoming ? (
+          <ol class="upcoming" data-stagger>
+            {upcoming.map((e) => (
+              <li class:list={['ev', { monthly: e.monthly }]}>
+                <time class="when" datetime={e.start.toISOString()}>
+                  <span data-part="weekday">{inZone(e.start, { weekday: 'short' })}</span>
+                  <b data-part="day">{inZone(e.start, { day: 'numeric' })}</b>
+                  <span data-part="month">{inZone(e.start, { month: 'short' })}</span>
+                </time>
+                <div>
+                  <span class="clock" data-start={e.start.toISOString()}>
+                    {inZone(e.start, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}
+                  </span>
+                  <h3>{e.name}</h3>
+                  {e.text && <p>{e.text}</p>}
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <div class="week" data-stagger>
+            {days.map((d) => {
+              const today = events.filter((e) => e.day === d);
+              return (
+                <div class:list={['day', { empty: today.length === 0 }]}>
+                  <span class="dn">{d}</span>
+                  {today.map((e) => (
+                    <div class:list={['ev', { monthly: e.monthly }]}>
+                      <h3>{e.name}</h3>
+                      <p>{e.text}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )
+      }
+      <div class="legend" data-reveal>
+        {upcoming ? <span data-tz>Times in Central European Time</span> : <><span>Solid line: every week</span><span>Dotted line: once a month</span></>}
+      </div>
+    </div>
+  </section>
+
+  <div class="sep" aria-hidden="true" data-reveal>
+    <span class="runes">{[...'ᚠᚦᚨᚱᚲ'].map((r, i) => <span style={`--i: ${i}`}>{r}</span>)}</span>
+  </div>
+
+  <section>
+    <div class="wrap feature">
+      <figure data-reveal>
+        <button type="button" class="zoom" data-src="/img/great-hall.webp"><img src="/img/great-hall.webp" alt="Clansmen gathered in the Völsung great hall before the Jarl and his housecarls" width="1400" height="636" loading="lazy" /></button>
+      </figure>
+      <div class="txt" data-stagger>
+        <p class="eyebrow">Promotion Ceremony</p>
+        <h2>The great hall</h2>
+        <p>On the last Sunday of every month we gather in our great hall to celebrate the achievements of our clansmen and hear updates and announcements from our leadership.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="jarldom" class="band">
+    <div class="wrap jarldom">
+      <div class="head" data-stagger>
+        <p class="eyebrow">The Jarldom</p>
+        <h2>Fylki and Flokkr</h2>
+        <p>The clan marches under one banner and is divided into Fylki, each with its own banner and Merkismaðr. Every Fylki holds smaller Flokkr and has its own page.</p>
+      </div>
+      <div class="crown">
+        <div class="bannerframe">
+          <div class="banner main"><i class="emblem" aria-hidden="true"></i></div>
+          <b>The Völsung Clan</b>
+          <small>Main banner of the clan</small>
+        </div>
+      </div>
+      <div class="fylki">
+        {
+          fylki.map((f) => (
+            <div>
+              <FylkiBanner fylki={f} href={`/fylki/${f.slug}/`} />
+              <FlokkrList fylki={f} />
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section id="ranks">
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">Ranks</p>
+        <h2>From Thrall to Jarl</h2>
+        <p>Every rank is earned in battle, in the civilian branch or by leading others.</p>
+      </div>
+      <div class="leaders" data-stagger>
+        {
+          leaders.map((l) => (
+            <div class="leader">
+              <span class="rune" aria-hidden="true">{l.rune}</span>
+              <b>{l.name}</b>
+              <span>{l.role}</span>
+            </div>
+          ))
+        }
+      </div>
+      <div class="tiers" data-reveal>
+        {
+          tiers.map((t) => (
+            <div class="tier">
+              <header>
+                <h3>{t.name}</h3>
+                <p>{t.meaning}</p>
+              </header>
+              <div class="ranks">
+                {t.ranks.map((r) => (
+                  <Rank rank={r} />
+                ))}
+              </div>
+            </div>
+          ))
+        }
+        <div class="tier">
+          <header><h3>Skjaldborg</h3><p>The Shieldwall</p></header>
+          <div>
+            <div class="ladder">
+              <div class="lh">Infantry</div><div class="lh">Archers</div><div class="lh">Civilians</div>
+              {
+                shieldwall.map((row) =>
+                  [row.infantry, row.archers, row.civilians].map((r) => (
+                    <div>
+                      <Rank rank={r} placeholder />
+                    </div>
+                  )),
+                )
+              }
+            </div>
+            <div class="shared">
+              <div class="lh">Every branch</div>
+              {
+                folk.map((r) => (
+                  <div>
+                    <Rank rank={r} />
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="media" class="band">
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">Media</p>
+        <h2>A picture speaks a thousand words</h2>
+      </div>
+      {homeVideos.length > 0 && <div class="home-videos"><VideoGrid items={homeVideos} /></div>}
+      <Gallery items={gallery.filter((g) => g.home)} />
+      <div class="gallery-more" data-reveal>
+        <a class="btn btn-ghost" href="/media/">{homeVideos.length ? 'See all photos and videos' : 'See the full gallery'}</a>
+      </div>
+      {
+        creators.length > 0 && (
+          <>
+            <div class="head sub-head" data-stagger>
+              <p class="eyebrow">Creators</p>
+              <p>Völsung members who stream and make videos.</p>
+            </div>
+            <div class="creators" data-stagger>
+              {creators.map((c) => (
+                <a class="creator" href={c.url} target="_blank" rel="noopener">
+                  {c.image ? <img src={c.image} alt="" loading="lazy" /> : <i class="emblem" aria-hidden="true" />}
+                  <b>{c.name}</b>
+                  <span>{platform(c.url)}</span>
+                </a>
+              ))}
+            </div>
+          </>
+        )
+      }
+      <div class="head sub-head" data-stagger>
+        <p class="eyebrow">Other games</p>
+        <p>Community-led sessions you can jump into whenever you like.</p>
+      </div>
+      <div class="games" data-stagger>
+        {
+          otherGames.map((g) => (
+            <div class="game">
+              {g.image && <img src={g.image} alt="" loading="lazy" />}
+              <span>{g.name}</span>
+            </div>
+          ))
+        }
+        <div class="game more"><span>And many more</span></div>
+      </div>
+    </div>
+  </section>
+
+  <Lightbox />
+
+  <section id="faq">
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">Questions</p>
+        <h2>Before you join</h2>
+      </div>
+      <div class="faq" data-stagger>
+        {
+          faq.map((f) => (
+            <details>
+              <summary><h3>{f.q}</h3></summary>
+              <p>{f.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="join" id="join">
+    <img class="bg" src="/img/castle-muster.webp" alt="" aria-hidden="true" />
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">Join today</p>
+        <h2>Think we might be right for you?</h2>
+        <p class="ink">Don't worry if you're new to multiplayer or to Bannerlord. Trainings, guides and experienced players will help you build your skills.</p>
+      </div>
+      <div class="steps" data-stagger>
+        <div class="step"><span class="n">Step 1</span><h3>Join the Discord</h3><p>Open the invite and say hello.</p></div>
+        <div class="step"><span class="n">Step 2</span><h3>Apply</h3><p>Post a short application in #applications using the template.</p></div>
+        <div class="step"><span class="n">Step 3</span><h3>Onboarding</h3><p>Questions go to #ask-for-help or to any member of leadership.</p></div>
+      </div>
+      <div class="invite" data-reveal>
+        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+        <code>discord.gg/volsung-clan</code>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { inviteApi } from '../lib/discord';
+
+  // Refresh the Discord counts in the hero. If Discord does not answer, the numbers from the build stay.
+  const live = document.querySelector<HTMLAnchorElement>('.live[data-invite]');
+  if (live) {
+    fetch(inviteApi(live.dataset.invite ?? ''))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const values: Record<string, unknown> = { members: d?.approximate_member_count, online: d?.approximate_presence_count };
+        if (typeof values.members !== 'number' || typeof values.online !== 'number') return;
+        live.querySelectorAll<HTMLElement>('[data-count]').forEach((b) => {
+          b.textContent = (values[b.dataset.count ?? ''] as number).toLocaleString('en');
+        });
+        live.hidden = false;
+      })
+      .catch(() => {});
+  }
+
+  // Calendar dates and times are written in the clan's time zone; show them in the visitor's own.
+  const local = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-GB', o).format(d);
+  const parts: Record<string, Intl.DateTimeFormatOptions> = { weekday: { weekday: 'short' }, day: { day: 'numeric' }, month: { month: 'short' } };
+  const whens = document.querySelectorAll<HTMLTimeElement>('.upcoming .when');
+  whens.forEach((t) => {
+    const d = new Date(t.dateTime);
+    t.querySelectorAll<HTMLElement>('[data-part]').forEach((p) => (p.textContent = local(d, parts[p.dataset.part ?? ''])));
+  });
+  document.querySelectorAll<HTMLElement>('.upcoming .clock').forEach((c) => {
+    c.textContent = local(new Date(c.dataset.start ?? ''), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  });
+  const tz = document.querySelector('[data-tz]');
+  if (tz && whens.length) tz.textContent = 'Times in your time zone';
+
+  // A pillar video loads only when it is played.
+  document.querySelectorAll<HTMLAnchorElement>('.pillar .video').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const frame = document.createElement('iframe');
+      frame.src = `https://www.youtube-nocookie.com/embed/${a.dataset.video}?autoplay=1`;
+      frame.title = a.getAttribute('aria-label') ?? '';
+      frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      frame.className = 'media';
+      a.replaceWith(frame);
+    });
+  });
+</script>
+
+<style>
+  /* On a wide screen the hero grows towards the picture's own shape (up to the screen height), so the shieldwall is not cut away. */
+  .hero { position: relative; isolation: isolate; overflow: hidden; border-bottom: 1px solid var(--line); display: grid; align-items: center; min-height: min(calc(100svh - 64px), 56.25vw); }
+  .hero img.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 62%; z-index: -2; }
+  .hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    /* The text column, facts row included, stays on shade; the bannerman on the right keeps full light. */
+    background:
+      linear-gradient(90deg, var(--shade) 0%, var(--shade) 30%, color-mix(in srgb, var(--shade) 65%, transparent) 55%, transparent 82%),
+      linear-gradient(0deg, var(--pitch) 0%, transparent 22%);
+  }
+  /* On a phone the text covers the whole picture: shade it evenly and keep the bannerman in view. */
+  @media (max-width: 700px) {
+    .hero img.bg { object-position: 78% 50%; }
+    .hero::after { background: linear-gradient(0deg, var(--pitch) 0%, transparent 35%), color-mix(in srgb, var(--shade) 75%, transparent); }
+  }
+  /* As a grid item with auto margins the wrap would shrink to its text; full width keeps it in line with the logo. */
+  .hero .wrap { width: 100%; padding-block: clamp(72px, 12vw, 150px) clamp(56px, 8vw, 96px); display: grid; gap: 26px; }
+  .hero h1 { font-family: var(--f-title); font-weight: 400; font-size: clamp(52px, 9.4vw, 124px); letter-spacing: 0.02em; line-height: 0.92; max-width: 9ch; }
+  .hero h1 small { display: block; font-size: 0.34em; letter-spacing: 0.06em; color: var(--gold); margin-bottom: 0.3em; }
+  .hero .lede { max-width: 34ch; font-size: clamp(19px, 2vw, 23px); }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+  /* Over the shields a see-through button vanishes, so both keep a dark ground (also while hovered). */
+  .hero .btn-ghost { background: color-mix(in srgb, var(--pitch) 72%, transparent); }
+  .hero .btn-gold:hover { background: var(--pitch); }
+  /* Each fact is a small dark tag, so it reads over the bright shields as well as the dark forest. */
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-family: var(--f-display);
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--ink) 82%, var(--muted));
+  }
+  .facts span { padding: 7px 12px; border: 1px solid var(--line); background: color-mix(in srgb, var(--pitch) 72%, transparent); }
+  @media (max-width: 700px) {
+    .facts { gap: 6px; font-size: 12px; letter-spacing: 0.1em; }
+    .facts span { padding: 6px 9px; }
+  }
+  .facts b { color: var(--ink); font-weight: 700; }
+  .live {
+    justify-self: start;
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 20px;
+    padding: 10px 16px;
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--pitch) 70%, transparent);
+    font-family: var(--f-display);
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    transition: border-color 0.2s;
+  }
+  .live[hidden] { display: none; }
+  .live:hover { border-color: var(--gold); }
+  .live b { color: var(--ink); font-weight: 700; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #23a55a; }
+  @media (prefers-reduced-motion: no-preference) {
+    .dot { animation: online 2.4s ease-out infinite; }
+  }
+  @keyframes online {
+    from { box-shadow: 0 0 0 0 rgba(35, 165, 90, 0.6); }
+    to { box-shadow: 0 0 0 10px rgba(35, 165, 90, 0); }
+  }
+
+  /* Leaving the hero: the background drifts slower than the page and the text dissolves
+     into the next section. Browsers without scroll-driven animations keep it still. */
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: scroll()) {
+      .hero img.bg {
+        animation-name: hero-drift;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: scroll(root);
+        animation-range: 0px 100vh;
+      }
+      .join { view-timeline: --join block; }
+      .join img.bg {
+        animation-name: join-drift;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: --join;
+        animation-range: cover;
+      }
+    }
+    @supports (animation-timeline: scroll()) {
+      @media (min-height: 620px) {
+        .hero > .wrap {
+          animation-name: hero-leave;
+          animation-timing-function: linear;
+          animation-fill-mode: both;
+          animation-timeline: scroll(root);
+          animation-range: 8vh 75vh;
+        }
+      }
+    }
+  }
+  @keyframes hero-drift { to { transform: translateY(30%) scale(1.06); } }
+  @keyframes hero-leave { to { opacity: 0; transform: translateY(-56px); } }
+  @keyframes join-drift {
+    from { transform: translateY(-12%) scale(1.25); }
+    to { transform: translateY(12%) scale(1.25); }
+  }
+
+  .pillars { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 44px; border-top: 2px solid var(--on-sand); }
+  /* Title, text and picture sit on shared rows, so the pictures line up however long the text is. */
+  .pillar { position: relative; padding: 28px 0 8px; display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 12px; }
+  .pillar + .pillar::before { content: ""; position: absolute; inset: 0 auto 0 -22px; border-left: 1px solid color-mix(in srgb, var(--on-sand) 25%, transparent); }
+  .pillar p { font-size: 18px; }
+  .pillar .media { display: block; width: 100%; aspect-ratio: 16 / 10; margin-top: 10px; border: 0; object-fit: cover; background: var(--pitch); }
+  .pillar .video { position: relative; }
+  .pillar .video img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pillar .video::after {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 64px;
+    height: 64px;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--pitch) 80%, transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 6.5v11l9-5.5z' fill='%23c49c55'/%3E%3C/svg%3E") center / 34px no-repeat;
+    border: 1px solid var(--gold);
+    transition: scale 0.2s;
+  }
+  .pillar .video:hover::after { scale: 1.08; }
+  @media (max-width: 1100px) {
+    .pillars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pillar:nth-child(odd)::before { display: none; }
+    .pillar:nth-child(n + 3) { margin-top: 24px; border-top: 1px solid color-mix(in srgb, var(--on-sand) 25%, transparent); }
+  }
+  @media (max-width: 820px) {
+    .pillars { grid-template-columns: 1fr; }
+    .pillar { padding: 24px 0; border-bottom: 1px solid color-mix(in srgb, var(--on-sand) 25%, transparent); }
+    .pillar + .pillar::before { display: none; }
+  }
+
+  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--line); }
+  .day { min-height: 190px; padding: 14px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+  .day:first-child { border-left: 0; }
+  .dn { font-family: var(--f-display); font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .ev { border-top: 2px solid var(--gold); padding-top: 10px; display: grid; gap: 4px; }
+  .ev.monthly { border-top-style: dotted; }
+  .ev h3 { font-size: 16px; }
+  .ev p { font-size: 15px; color: var(--muted); line-height: 1.4; }
+  /* Upcoming events stand side by side as tall cards, read left to right like a calendar strip.
+     Six fit across a desktop; on narrower screens the strip scrolls sideways. */
+  .upcoming {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max(176px, calc((100% - 5 * 10px) / 6));
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+  .upcoming .ev { scroll-snap-align: start; min-height: 320px; align-content: start; gap: 6px; padding: 18px 16px 20px; border: 1px solid var(--line); border-top: 2px solid var(--gold); background: var(--field); }
+  .upcoming .ev.monthly { border-top-style: dotted; }
+  .upcoming .ev > div { display: grid; gap: 6px; align-content: start; }
+  .upcoming h3 { font-size: 17px; overflow-wrap: anywhere; }
+  .when {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "day weekday" "day month";
+    column-gap: 12px;
+    align-items: center;
+    padding-bottom: 14px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--f-display);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    line-height: 1.2;
+  }
+  .when span { font-size: 12px; color: var(--muted); }
+  .when [data-part="weekday"] { grid-area: weekday; align-self: end; color: var(--gold); }
+  .when [data-part="month"] { grid-area: month; align-self: start; }
+  .when b { grid-area: day; font-size: 44px; font-weight: 700; letter-spacing: 0.02em; line-height: 1; }
+  .clock { font-family: var(--f-display); font-size: 14px; letter-spacing: 0.12em; color: var(--gold); }
+  /* On a phone the strip runs to the screen edges and the next card peeks in, so it reads as scrollable. */
+  @media (max-width: 560px) {
+    .upcoming { grid-auto-columns: 62%; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
+  }
+  .findus { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin: -12px 0 28px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; color: var(--muted); font-size: 16px; }
+  @media (max-width: 900px) {
+    .week { grid-template-columns: 1fr; }
+    .day { min-height: 0; border-left: 0; border-top: 1px solid var(--line); flex-direction: row; align-items: flex-start; gap: 16px; }
+    .day:first-child { border-top: 0; }
+    .dn { width: 46px; flex: none; padding-top: 12px; }
+    .day.empty { display: none; }
+    .ev { flex: 1; }
+  }
+
+  .feature { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); align-items: center; }
+  .feature figure { margin: 0; border: 1px solid var(--line); padding: 8px; background: var(--field); }
+  .feature img { display: block; width: 100%; height: auto; }
+  .feature .zoom { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; overflow: hidden; }
+  .feature .zoom img { transition: transform 0.5s; }
+  .feature .zoom:hover img { transform: scale(1.03); }
+  .feature .txt { display: grid; gap: 16px; }
+  @media (max-width: 820px) { .feature { grid-template-columns: 1fr; } }
+  /* The great hall unrolls from the top, like a banner being lowered. */
+  :global(.motion) .feature figure[data-reveal] { opacity: 1; transform: none; clip-path: inset(0 0 100% 0); transition: clip-path 1.2s cubic-bezier(0.7, 0, 0.2, 1); }
+  :global(.motion) .feature figure[data-reveal].is-in { clip-path: inset(0); }
+
+  .jarldom { display: grid; gap: 36px; }
+  .crown { display: flex; justify-content: center; }
+  .fylki { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding-top: 28px; border-top: 1px solid var(--line); }
+  /* Each card spans two shared rows (banner, Flokkr), so the rows line up even when only some Fylki have a subtitle. */
+  .fylki > div { display: grid; grid-row: span 2; grid-template-rows: subgrid; align-content: start; gap: 18px; justify-items: center; }
+  @media (max-width: 700px) { .fylki { grid-template-columns: 1fr; } }
+
+  .tiers { display: grid; gap: 2px; background: var(--line); border: 1px solid var(--line); }
+  .tier { background: var(--pitch); display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; padding: 22px; }
+  .tier header { display: grid; gap: 4px; align-content: start; }
+  .tier header h3 { font-size: 19px; }
+  .tier header p { color: var(--muted); font-size: 16px; }
+  .ranks { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 18px; }
+  .ladder { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); }
+  .ladder > div { padding: 12px 14px; border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
+  .ladder > div:nth-child(3n + 1) { border-left: 0; }
+  .lh { font-family: var(--f-display); font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+  .ladder > .lh { border-top: 0; }
+  /* Folk and Thrall come before the branches split, so they run across all three columns. */
+  .shared { border: 1px solid var(--line); border-top: 0; }
+  .shared > div { padding: 12px 14px; border-top: 1px solid var(--line); }
+  .shared > .lh { border-top: 0; }
+  @media (max-width: 820px) { .tier { grid-template-columns: 1fr; gap: 14px; } }
+  /* Three branch columns are too narrow on a phone: list Warriors, then Archers, then Civilians. */
+  @media (max-width: 560px) {
+    .ladder { grid-template-columns: minmax(0, 1fr); }
+    .ladder > div { border-left: 0; }
+    .ladder > :nth-child(3n + 1) { order: 1; }
+    .ladder > :nth-child(3n + 2) { order: 2; }
+    .ladder > :nth-child(3n + 3) { order: 3; }
+    .ladder > .lh:not(:first-child) { border-top: 1px solid var(--line); }
+  }
+
+  .leaders { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .leader { border: 1px solid var(--line); padding: 16px; display: grid; gap: 6px; background: var(--field); }
+  .leader .rune { font-size: 22px; }
+  .leader b { font-family: var(--f-display); letter-spacing: 0.06em; }
+  .leader span { color: var(--muted); font-size: 15px; }
+  @media (max-width: 820px) { .leaders { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+  .gallery-more { margin-top: 20px; display: flex; justify-content: center; }
+  .home-videos { margin-bottom: 28px; }
+  .sub-head { margin: 56px 0 18px; }
+  .creators { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .creator {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid var(--line);
+    background: var(--pitch);
+    text-decoration: none;
+    transition: border-color 0.2s;
+  }
+  .creator:hover { border-color: var(--gold); }
+  .creator img, .creator .emblem { grid-row: span 2; width: 52px; height: 52px; object-fit: cover; border-radius: 50%; }
+  .creator .emblem { width: 22px; height: auto; justify-self: center; opacity: 0.5; border-radius: 0; }
+  .creator b { font-family: var(--f-display); letter-spacing: 0.06em; font-size: 17px; }
+  .creator span { color: var(--gold); font-size: 15px; }
+  .games { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+  .game {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+    display: flex;
+    align-items: flex-end;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-top: 2px solid var(--gold);
+    background: var(--pitch);
+  }
+  .game img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; transition: transform 0.5s; }
+  .game:has(img)::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, rgba(8, 8, 7, 0.88), transparent 65%); }
+  .game:hover img { transform: scale(1.05); }
+  .game span { font-family: var(--f-display); font-size: 15px; letter-spacing: 0.08em; line-height: 1.2; }
+  /* Until a game has its picture, the clan serpent fills the tile. */
+  .game:not(:has(img))::before {
+    content: "";
+    position: absolute;
+    inset: 12px 12px 12px auto;
+    aspect-ratio: 168 / 270;
+    z-index: -1;
+    background: var(--emblem);
+    -webkit-mask: url(/img/emblem-mask.png) center / contain no-repeat;
+    mask: url(/img/emblem-mask.png) center / contain no-repeat;
+    opacity: 0.07;
+  }
+  .game.more { border: 1px dashed var(--line); color: var(--muted); }
+  .game.more::before { display: none; }
+
+  /* Questions fold open one by one; their answers stay in the page for search engines. */
+  .faq { max-width: 860px; border-top: 1px solid var(--line); }
+  .faq details { border-bottom: 1px solid var(--line); }
+  .faq summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 20px 0; cursor: pointer; list-style: none; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; flex: none; font-family: var(--f-display); font-size: 26px; line-height: 1; color: var(--gold); transition: rotate 0.2s; }
+  .faq details[open] summary::after { rotate: 45deg; }
+  .faq summary:hover h3 { color: var(--gold); }
+  .faq h3 { font-size: 18px; transition: color 0.2s; }
+  .faq p { max-width: 70ch; padding-bottom: 22px; color: var(--muted); }
+
+  .join { position: relative; isolation: isolate; overflow: hidden; }
+  .join img.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+  .join::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, var(--shade), color-mix(in srgb, var(--shade) 75%, transparent)); }
+  .join .head p.ink { color: var(--ink); }
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 32px 0; }
+  .step { border-top: 2px solid var(--gold); padding-top: 14px; display: grid; gap: 8px; }
+  .step .n { font-family: var(--f-display); font-size: 13px; letter-spacing: 0.2em; color: var(--gold); }
+  .step p { font-size: 17px; }
+  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+  .invite { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .invite code { font-family: var(--f-body); font-size: 18px; padding: 12px 14px; border: 1px solid var(--line); background: var(--field); user-select: all; }
+</style>

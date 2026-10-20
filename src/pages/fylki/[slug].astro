@@ -1,0 +1,133 @@
+---
+import Base from '../../layouts/Base.astro';
+import FylkiBanner from '../../components/FylkiBanner.astro';
+import Gallery from '../../components/Gallery.astro';
+import FlokkrList from '../../components/FlokkrList.astro';
+import Saga from '../../components/Saga.astro';
+import Lightbox from '../../components/Lightbox.astro';
+import { DISCORD_URL, fylki, lsRoles, type Fylki } from '../../data/clan';
+
+export function getStaticPaths() {
+  return fylki.map((f) => ({ params: { slug: f.slug }, props: { fylki: f } }));
+}
+
+const { fylki: f } = Astro.props as { fylki: Fylki };
+const others = fylki.filter((o) => o.slug !== f.slug);
+---
+
+<Base title={f.name} description={`${f.name}, a Fylki of The Völsung Clan in Mount & Blade II: Bannerlord.`}>
+  <section class="fylki-hero">
+    <div class="wrap intro">
+      <FylkiBanner fylki={f} />
+      <div class="txt" data-stagger>
+        <p class="eyebrow">Fylki of The Völsung Clan</p>
+        <h1>{f.name}</h1>
+        <p class="lede">{f.description}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">Flokkr</p>
+        <h2>The bands of {f.name}</h2>
+      </div>
+      <div class="flokkr-row" data-reveal>
+        <FlokkrList fylki={f} />
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">Leadership</p>
+        <h2>Who leads {f.name}</h2>
+      </div>
+      <div class="ls" data-reveal>
+        {
+          lsRoles.map((role) => (
+            <div class="role">
+              <header>
+                <h3>{role.name}</h3>
+                <p>{role.text}</p>
+              </header>
+              <div class="members">
+                {f.ls[role.key].length ? (
+                  f.ls[role.key].map((m) => (
+                    <div class="member">
+                      {m.portrait ? (
+                        <img src={m.portrait} alt={`Portrait of ${m.name}`} loading="lazy" />
+                      ) : (
+                        <span class="emblem" aria-hidden="true" />
+                      )}
+                      <b>{m.name}</b>
+                      {m.title && <span>{m.title}</span>}
+                    </div>
+                  ))
+                ) : (
+                  <p class="tba">To be announced</p>
+                )}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <Saga eyebrow="Saga" title={f.loreTitle ?? `The lore of ${f.name}`} paragraphs={f.lore} open={4} empty={`The saga of ${f.name} is yet to be written.`} />
+    </div>
+  </section>
+
+  {
+    f.gallery.length > 0 && (
+      <section>
+        <div class="wrap">
+          <div class="head" data-stagger>
+            <p class="eyebrow">Media</p>
+            <h2>{f.name} in battle</h2>
+          </div>
+          <Gallery items={f.gallery} />
+        </div>
+      </section>
+    )
+  }
+
+  <section class:list={[{ band: f.gallery.length > 0 }]}>
+    <div class="wrap others" data-reveal>
+      <p class="eyebrow">Other Fylki</p>
+      <div class="links">
+        {others.map((o) => <a class="textlink" href={`/fylki/${o.slug}/`}>{o.name}</a>)}
+        <a class="textlink" href="/#jarldom">The whole Jarldom</a>
+      </div>
+      <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+    </div>
+  </section>
+  {f.gallery.length > 0 && <Lightbox />}
+</Base>
+
+<style>
+  .intro { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(24px, 5vw, 64px); }
+  .intro .txt { display: grid; gap: 16px; flex: 1 1 280px; min-width: 0; }
+  h1 { font-size: clamp(36px, 7vw, 84px); font-weight: 900; letter-spacing: 0.05em; overflow-wrap: anywhere; }
+  .lede { max-width: 50ch; font-size: clamp(19px, 2vw, 22px); color: var(--muted); }
+  .flokkr-row :global(.flokkr) { justify-content: flex-start; --pennant: 120px; }
+  .ls { display: grid; gap: 2px; background: var(--line); border: 1px solid var(--line); }
+  .role { background: var(--pitch); display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; padding: 22px; }
+  .role header { display: grid; gap: 4px; align-content: start; }
+  .role header p { color: var(--muted); font-size: 16px; }
+  .members { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
+  .member { display: grid; gap: 6px; justify-items: start; align-content: start; }
+  .member img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border: 1px solid var(--line); }
+  .member .emblem { width: 28px; }
+  .member b { font-family: var(--f-display); font-size: 15px; letter-spacing: 0.06em; }
+  .member span:not(.emblem) { color: var(--muted); font-size: 15px; }
+  .tba { color: var(--muted); font-style: italic; }
+  @media (max-width: 820px) { .role { grid-template-columns: 1fr; gap: 14px; } }
+  .others { display: grid; gap: 20px; justify-items: start; }
+  .links { display: flex; flex-wrap: wrap; gap: 20px; }
+</style>

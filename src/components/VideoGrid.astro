@@ -1,0 +1,112 @@
+---
+// Members' videos as cards. A video plays over the page and loads only when it is clicked, from YouTube or
+// from the site's own file; without JavaScript the card opens the video itself.
+import type { VideoCard } from '../lib/videos';
+
+interface Props {
+  items: VideoCard[];
+}
+
+const { items } = Astro.props;
+---
+
+<div class="videos" data-stagger>
+  {
+    items.map((v) => (
+      <a class="vcard" href={v.url} target="_blank" rel="noopener" data-youtube={v.youtube} data-poster={v.poster}>
+        <span class="thumb">
+          <img src={v.thumb} alt="" loading="lazy" />
+        </span>
+        <b>{v.title}</b>
+        {v.by && <span class="by">{v.by}</span>}
+      </a>
+    ))
+  }
+</div>
+
+<dialog id="player" aria-label="Video">
+  <div class="frame"></div>
+  <form method="dialog"><span id="player-cap"></span><button>Close</button></form>
+</dialog>
+
+<script>
+  const dlg = document.getElementById('player') as HTMLDialogElement | null;
+  const frame = dlg?.querySelector('.frame');
+  const cap = document.getElementById('player-cap');
+  const youtube = (id: string, title: string) => {
+    const iframe = document.createElement('iframe');
+    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1`;
+    iframe.title = title;
+    iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+    iframe.allowFullscreen = true;
+    return iframe;
+  };
+  const file = (src: string, poster: string) => {
+    const video = document.createElement('video');
+    Object.assign(video, { src, poster, controls: true, autoplay: true, playsInline: true });
+    // Our own clips are wider than 16:9, so the frame takes the clip's shape instead of adding black bars.
+    video.addEventListener('loadedmetadata', () => frame?.setAttribute('style', `aspect-ratio: ${video.videoWidth} / ${video.videoHeight}`));
+    return video;
+  };
+  document.querySelectorAll<HTMLAnchorElement>('.videos a.vcard').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      if (!dlg || !frame || !cap) return;
+      e.preventDefault();
+      const title = a.querySelector('b')?.textContent ?? '';
+      frame.replaceChildren(a.dataset.youtube ? youtube(a.dataset.youtube, title) : file(a.href, a.dataset.poster ?? ''));
+      cap.textContent = title;
+      dlg.showModal();
+    });
+  });
+  // Closing stops the video.
+  dlg?.addEventListener('close', () => {
+    frame?.replaceChildren();
+    frame?.removeAttribute('style');
+  });
+  dlg?.addEventListener('click', (e) => {
+    if (e.target === dlg) dlg.close();
+  });
+</script>
+
+<style>
+  .videos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .vcard { display: grid; align-content: start; gap: 8px; text-decoration: none; color: var(--ink); }
+  .thumb { position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden; background: var(--pitch); border: 1px solid var(--line); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s; }
+  .thumb::after {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 52px;
+    height: 52px;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--pitch) 80%, transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M9 6.5v11l9-5.5z' fill='%23c49c55'/%3E%3C/svg%3E") center / 28px no-repeat;
+    border: 1px solid var(--gold);
+    transition: scale 0.2s;
+  }
+  .vcard:hover .thumb img { transform: scale(1.04); }
+  .vcard:hover .thumb::after { scale: 1.08; }
+  .vcard b { font-family: var(--f-display); font-size: 15px; letter-spacing: 0.04em; line-height: 1.35; }
+  .vcard:hover b { color: var(--gold); }
+  .by { color: var(--muted); font-size: 15px; margin-top: -4px; }
+  @media (max-width: 900px) { .videos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 520px) { .videos { grid-template-columns: minmax(0, 1fr); } }
+
+  dialog { border: 1px solid var(--line); background: var(--pitch); padding: 8px; width: min(1200px, 94vw); color: var(--ink); }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.85); }
+  .frame { aspect-ratio: 16 / 9; max-height: 80vh; background: #000; }
+  .frame :global(iframe), .frame :global(video) { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+  dialog form { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 4px 0; font-size: 16px; color: var(--muted); }
+  dialog button {
+    font-family: var(--f-display);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 12px;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+</style>

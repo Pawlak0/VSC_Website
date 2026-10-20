@@ -1,0 +1,53 @@
+---
+interface Props {
+  eyebrow: string;
+  title: string;
+  paragraphs: string[];
+  /** Shown while there is no saga yet. */
+  empty: string;
+  /** How many paragraphs show before "Read the whole saga". All of them when not set. */
+  open?: number;
+}
+
+const { eyebrow, title, paragraphs, empty, open = paragraphs.length } = Astro.props;
+// Folding away a single paragraph would only hide it, so a saga only one longer than `open` shows whole.
+const shown = paragraphs.length > open + 1 ? paragraphs.slice(0, open) : paragraphs;
+const rest = paragraphs.slice(shown.length);
+---
+
+<div class="head" data-stagger>
+  <p class="eyebrow">{eyebrow}</p>
+  <h2>{title}</h2>
+</div>
+{
+  paragraphs.length ? (
+    <div class="saga" data-reveal>
+      {shown.map((p) => <p>{p}</p>)}
+      {rest.length > 0 && (
+        <details>
+          <summary class="textlink">Read the whole saga</summary>
+          {rest.map((p) => <p>{p}</p>)}
+        </details>
+      )}
+    </div>
+  ) : (
+    <p class="tba">{empty}</p>
+  )
+}
+
+<style>
+  .saga { max-width: 68ch; line-height: 1.65; }
+  .saga p + p, .saga details p { margin-top: 1em; }
+  .saga > p:first-child::first-letter {
+    float: left;
+    font-family: var(--f-display);
+    font-size: 3.3em;
+    line-height: 0.9;
+    padding: 0.06em 0.1em 0 0;
+    color: var(--gold);
+  }
+  summary { display: inline-block; margin-top: 1.6em; cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  details[open] summary { display: none; }
+  .tba { color: var(--muted); font-style: italic; }
+</style>

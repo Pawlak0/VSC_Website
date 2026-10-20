@@ -1,0 +1,28 @@
+---
+import type { Rank } from '../data/clan';
+
+interface Props {
+  rank: Rank;
+  /** Keep the icon column even without an icon, so the rows of a ladder line up. */
+  placeholder?: boolean;
+}
+
+const { rank, placeholder = false } = Astro.props;
+---
+
+<div class:list={['rank', { 'with-icon': rank.icon || placeholder }]}>
+  {rank.icon ? <img src={rank.icon} alt="" width="32" height="32" loading="lazy" /> : placeholder && <i class="emblem" aria-hidden="true" />}
+  <b>{rank.name}</b>
+  <span>{rank.text}</span>
+</div>
+
+<style>
+  .rank { display: grid; gap: 2px; align-content: start; }
+  .rank b { font-family: var(--f-display); font-size: 15px; letter-spacing: 0.06em; }
+  .rank span { font-size: 15px; color: var(--muted); line-height: 1.35; }
+  .with-icon { grid-template-columns: 32px minmax(0, 1fr); column-gap: 12px; align-items: center; }
+  .with-icon > img, .with-icon > .emblem { grid-row: span 2; }
+  .with-icon > b, .with-icon > span { grid-column: 2; }
+  img { width: 32px; height: 32px; object-fit: contain; }
+  .emblem { width: 14px; justify-self: center; opacity: 0.35; }
+</style>

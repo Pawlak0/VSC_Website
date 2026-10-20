@@ -1,0 +1,152 @@
+[
+  {
+    "src": "/src/assets/gallery/recruit-poster.webp",
+    "alt": "A Völsung \"We want you\" recruitment poster on a castle wall",
+    "size": "normal",
+    "home": true
+  },
+  {
+    "src": "/src/assets/gallery/cavalry-charge.webp",
+    "alt": "Infantry and cavalry advancing over a hill",
+    "size": "normal",
+    "home": true
+  },
+  {
+    "src": "/src/assets/gallery/desert-march.webp",
+    "alt": "March across the desert",
+    "size": "normal",
+    "home": true
+  },
+  {
+    "src": "/src/assets/gallery/snow-shieldwall.webp",
+    "alt": "Shieldwall in a snowy forest",
+    "size": "normal",
+    "home": true
+  },
+  {
+    "src": "/src/assets/gallery/golden-wall.webp",
+    "alt": "Shieldwall in golden grass",
+    "size": "normal",
+    "home": true
+  },
+  {
+    "src": "/src/assets/gallery/meadow-wall.webp",
+    "alt": "Long shieldwall across a meadow",
+    "size": "normal",
+    "home": true
+  },
+  {
+    "src": "/src/assets/gallery/wheat-advance.webp",
+    "alt": "The shieldwall advancing through a wheat field under the banner",
+    "size": "normal",
+    "home": true
+  },
+  {
+    "src": "/src/assets/gallery/archers-roof.webp",
+    "alt": "Archers shooting from a thatched roof",
+    "size": "normal",
+    "home": true
+  },
+  {
+    "src": "/src/assets/gallery/shields-close.webp",
+    "alt": "Close-up of Völsung shields",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/rain-shieldwall.webp",
+    "alt": "Shieldwall in the rain at night",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/castle-muster.webp",
+    "alt": "The clan mustered on castle steps",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/meadow-firstperson.webp",
+    "alt": "First-person view down the shieldwall",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/forest-march.webp",
+    "alt": "The clan marching up a misty forest slope",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/castle-gate-wall.webp",
+    "alt": "Shieldwall kneeling before a castle gate",
+    "size": "wide",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/harbour-night.webp",
+    "alt": "Longships manned in the harbour at night",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/bre-ridge.webp",
+    "alt": "Völsung shields in the battle line on a ridge",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/longhouse-feast.webp",
+    "alt": "Feast in the longhouse",
+    "size": "wide",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/village-muster.webp",
+    "alt": "Warriors gathering in a village under the Völsung banners",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/siege-climb.webp",
+    "alt": "Storming up the logs beside a castle wall",
+    "size": "wide",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/shields-gate.webp",
+    "alt": "Close-up of the shieldwall at a castle gate",
+    "size": "big",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/training-yard.webp",
+    "alt": "A training bout in the yard",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/river-march.webp",
+    "alt": "Column marching along the river",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/palisade-gate.webp",
+    "alt": "Holding the palisade gate under arrows",
+    "size": "wide",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/bre-forest-wall.webp",
+    "alt": "Shieldwall braced at the edge of a forest",
+    "size": "normal",
+    "home": false
+  },
+  {
+    "src": "/src/assets/gallery/palisade-rest.webp",
+    "alt": "Resting on the palisade wall",
+    "size": "normal",
+    "home": false
+  }
+]

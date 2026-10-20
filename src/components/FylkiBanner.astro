@@ -1,0 +1,29 @@
+---
+interface Props {
+  /** A Fylki, or a Flokkr with a slug that is unique across the site. */
+  fylki: { slug: string; name: string; banner?: string; subtitle?: string };
+  /** Makes the whole banner a link, for the home page. */
+  href?: string;
+}
+
+const { fylki, href } = Astro.props;
+// Same name on the home page and the Fylki page, so the banner morphs between them.
+const morph = `view-transition-name: banner-${fylki.slug}`;
+const Frame = href ? 'a' : 'div';
+---
+
+<Frame class:list={['bannerframe', { linked: href }]} href={href}>
+  {
+    fylki.banner ? (
+      <div class="banner" style={morph}>
+        <img src={fylki.banner} alt={`Banner of ${fylki.name}`} />
+      </div>
+    ) : (
+      <div class="banner todo" style={morph}>
+        <i>Banner</i>
+      </div>
+    )
+  }
+  <b>{fylki.name}</b>
+  {fylki.subtitle && <small>{fylki.subtitle}</small>}
+</Frame>

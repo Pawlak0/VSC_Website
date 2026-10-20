@@ -1,0 +1,57 @@
+---
+import Base from '../../../layouts/Base.astro';
+import FylkiBanner from '../../../components/FylkiBanner.astro';
+import Saga from '../../../components/Saga.astro';
+import { DISCORD_URL, fylki, hasPage, type Flokkr, type Fylki } from '../../../data/clan';
+
+// A page for each Flokkr that has a description or a saga; the others are only named on their Fylki's page.
+export function getStaticPaths() {
+  return fylki.flatMap((f) =>
+    f.flokkr.filter(hasPage).map((k) => ({ params: { slug: f.slug, flokkr: k.slug }, props: { fylki: f, flokkr: k } })),
+  );
+}
+
+const { fylki: f, flokkr: k } = Astro.props as { fylki: Fylki; flokkr: Flokkr };
+const others = f.flokkr.filter((o) => o.slug !== k.slug && hasPage(o));
+---
+
+<Base title={`${k.name} Flokkr`} description={k.description ?? `${k.name}, a Flokkr of ${f.name} in The Völsung Clan.`}>
+  <section class="fylki-hero">
+    <div class="wrap intro">
+      <FylkiBanner fylki={{ ...k, slug: `${f.slug}-${k.slug}` }} />
+      <div class="txt" data-stagger>
+        <p class="eyebrow">Flokkr of <a href={`/fylki/${f.slug}/`}>{f.name}</a></p>
+        <h1>{k.name}</h1>
+        {k.description && <p class="lede">{k.description}</p>}
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <Saga eyebrow="Saga" title={k.loreTitle ?? `The lore of ${k.name}`} paragraphs={k.lore} empty={`The saga of ${k.name} is yet to be written.`} />
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap others" data-reveal>
+      <p class="eyebrow">More of {f.name}</p>
+      <div class="links">
+        <a class="textlink" href={`/fylki/${f.slug}/`}>{f.name} Fylki</a>
+        {others.map((o) => <a class="textlink" href={`/fylki/${f.slug}/${o.slug}/`}>{o.name}</a>)}
+        <a class="textlink" href="/#jarldom">The whole Jarldom</a>
+      </div>
+      <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .intro { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(24px, 5vw, 64px); }
+  .intro .txt { display: grid; gap: 16px; flex: 1 1 280px; min-width: 0; }
+  .eyebrow a { color: inherit; }
+  h1 { font-size: clamp(36px, 7vw, 84px); font-weight: 900; letter-spacing: 0.05em; overflow-wrap: anywhere; }
+  .lede { max-width: 50ch; font-size: clamp(19px, 2vw, 22px); color: var(--muted); }
+  .others { display: grid; gap: 20px; justify-items: start; }
+  .links { display: flex; flex-wrap: wrap; gap: 20px; }
+</style>

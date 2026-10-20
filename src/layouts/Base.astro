@@ -1,0 +1,293 @@
+---
+import '../styles/global.css';
+import { DISCORD_URL, fylki } from '../data/clan';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title,
+  description = "A Viking clan in Mount & Blade II: Bannerlord. We fight in the game's biggest events and open-world mods like Persistent Bannerlord. EU-based and newcomer friendly.",
+} = Astro.props;
+// The home page title carries the words people search for; other pages lead with their own name.
+const fullTitle = title ? `${title} · The Völsung Clan` : 'The Völsung Clan · Viking clan in Mount & Blade II: Bannerlord';
+const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+const ogImage = new URL('/img/og.jpg', Astro.site).toString();
+const isHome = Astro.url.pathname === '/';
+// Section links lead to the home page; Media and each Fylki are pages of their own.
+type NavLink = { href: string; label: string; sub?: NavLink[] };
+const nav: NavLink[] = [
+  { href: '/#events', label: 'Events' },
+  { href: '/#jarldom', label: 'Jarldom', sub: fylki.map((f) => ({ href: `/fylki/${f.slug}/`, label: f.name })) },
+  { href: '/#ranks', label: 'Ranks' },
+  { href: '/media/', label: 'Media' },
+];
+const here = Astro.url.pathname.replace(/\/?$/, '/');
+const current = (href: string) => (href === here ? 'page' : undefined);
+// Tells search engines who the clan is and where to find it, for the site name and links in results.
+const clanData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    { '@type': 'WebSite', name: 'The Völsung Clan', alternateName: 'VSC', url: Astro.site?.toString() },
+    {
+      '@type': 'Organization',
+      name: 'The Völsung Clan',
+      alternateName: 'VSC',
+      url: Astro.site?.toString(),
+      logo: new URL('/apple-touch-icon.png', Astro.site).toString(),
+      description,
+      sameAs: [DISCORD_URL],
+    },
+  ],
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="sitemap" href="/sitemap.xml" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="The Völsung Clan" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0d0d0c" />
+    {isHome && <script type="application/ld+json" set:html={JSON.stringify(clanData)} />}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=New+Rocker&family=Noto+Sans+Runic&display=swap"
+    />
+    <script is:inline>
+      if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.classList.add('motion');
+      }
+    </script>
+  </head>
+  <body>
+    <nav class="nav" aria-label="Main">
+      <div class="wrap">
+        <a class="brand" href="/"><i class="emblem" aria-hidden="true"></i>Völsung</a>
+        <ul id="nav-links">
+          {
+            nav.map((n) => (
+              <li class:list={[n.sub && 'has-sub']}>
+                <a href={n.href} aria-current={current(n.href)}>{n.label}</a>
+                {n.sub && (
+                  <ul class="sub">
+                    {n.sub.map((s) => (
+                      <li><a href={s.href} aria-current={current(s.href)}>{s.label}</a></li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))
+          }
+        </ul>
+        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join us</a>
+        <button class="menu" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+        </button>
+      </div>
+    </nav>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span><span class="rune">ᚠ</span> The Völsung Clan · Mount &amp; Blade II: Bannerlord</span>
+        <span class="links">
+          <a href={DISCORD_URL} target="_blank" rel="noopener">discord.gg/volsung-clan</a>
+          <a href="/admin/" rel="nofollow">Admin panel</a>
+        </span>
+      </div>
+    </footer>
+
+    <script>
+      const root = document.documentElement;
+
+      // Reveal sections as they scroll into view (styles in global.css).
+      if (root.classList.contains('motion')) {
+        document.querySelectorAll('[data-stagger]').forEach((group) => {
+          Array.from(group.children).forEach((child, i) => (child as HTMLElement).style.setProperty('--i', String(i)));
+        });
+        const reveal = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) {
+              if (!e.isIntersecting) continue;
+              e.target.classList.add('is-in');
+              reveal.unobserve(e.target);
+            }
+          },
+          { rootMargin: '0px 0px -8% 0px' },
+        );
+        document.querySelectorAll('[data-reveal], [data-stagger]').forEach((el) => reveal.observe(el));
+      }
+
+      // On a phone the links fold into a menu under the nav bar.
+      const nav = document.querySelector<HTMLElement>('.nav');
+      const menu = document.querySelector<HTMLButtonElement>('.nav .menu');
+      const toggle = (open: boolean) => {
+        nav?.classList.toggle('open', open);
+        menu?.setAttribute('aria-expanded', String(open));
+      };
+      menu?.addEventListener('click', () => toggle(!nav?.classList.contains('open')));
+      nav?.querySelectorAll('ul a').forEach((a) => a.addEventListener('click', () => toggle(false)));
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') toggle(false);
+      });
+
+      // Mark the nav link of the section in the middle of the screen.
+      const sectionLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('.nav ul a')).filter((a) => a.hash && a.pathname === location.pathname);
+      const links = new Map(sectionLinks.map((a) => [a.hash.slice(1), a]));
+      const spy = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            const link = links.get(e.target.id);
+            if (e.isIntersecting) link?.setAttribute('aria-current', 'location');
+            else link?.removeAttribute('aria-current');
+          }
+        },
+        { rootMargin: '-45% 0px -50% 0px' },
+      );
+      links.forEach((_, id) => {
+        const section = document.getElementById(id);
+        if (section) spy.observe(section);
+      });
+    </script>
+  </body>
+</html>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    view-transition-name: nav;
+    background: color-mix(in srgb, var(--pitch) 92%, transparent);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav .wrap { display: flex; align-items: center; gap: 20px; padding-block: 12px; }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    font-family: var(--f-title);
+    letter-spacing: 0.04em;
+    font-size: 26px;
+    line-height: 1;
+  }
+  .brand .emblem { width: 24px; }
+  .nav ul {
+    display: flex;
+    gap: 22px;
+    list-style: none;
+    margin: 0 0 0 auto;
+    padding: 0;
+    font-family: var(--f-display);
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .nav ul a { position: relative; text-decoration: none; color: var(--muted); }
+  .nav ul a:hover, .nav ul a[aria-current] { color: var(--gold); }
+  .nav ul a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -6px;
+    height: 1px;
+    background: var(--gold);
+    transform: scaleX(0);
+    transition: transform 0.4s;
+  }
+  .nav ul a[aria-current]::after { transform: none; }
+  /* The Fylki open under Jarldom; the gap above the list still counts as hovering it. */
+  .nav .has-sub { position: relative; }
+  .nav .has-sub:has([aria-current]) > a { color: var(--gold); }
+  .nav .sub {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: -17px;
+    margin: 18px 0 0;
+    padding: 16px;
+    gap: 14px;
+    min-width: 210px;
+    background: var(--pitch);
+    border: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .nav .sub::before { content: ""; position: absolute; inset: -19px 0 auto; height: 19px; }
+  .nav .has-sub:hover .sub, .nav .has-sub:focus-within .sub { display: grid; }
+  .menu { display: none; width: 40px; height: 40px; place-items: center; padding: 0; background: transparent; border: 1px solid var(--line); color: var(--ink); cursor: pointer; }
+  .menu svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.6; fill: none; }
+  .nav.open .menu { border-color: var(--gold); color: var(--gold); }
+  /* A thin gold line under the nav fills as the page is read. */
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: scroll()) {
+      .nav::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -1px;
+        height: 2px;
+        background: var(--gold);
+        transform-origin: left;
+        animation-name: read;
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: scroll(root);
+      }
+    }
+  }
+  @keyframes read {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  .nav .btn { padding: 10px 16px; font-size: 12px; }
+  @media (max-width: 860px) {
+    .nav .wrap { gap: 12px; }
+    .nav ul { display: none; }
+    .nav .btn { margin-left: auto; }
+    .menu { display: grid; }
+    .nav.open #nav-links {
+      display: grid;
+      gap: 0;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin: 0;
+      padding: 8px max(16px, env(safe-area-inset-left, 0px)) 18px;
+      background: var(--pitch);
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+    .nav.open #nav-links > li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .nav.open #nav-links > li:last-child { border-bottom: 0; }
+    .nav.open .sub { display: grid; position: static; margin: 0; padding: 14px 0 2px 18px; gap: 14px; min-width: 0; background: none; border: 0; }
+    .nav.open .sub::before { content: none; }
+  }
+  footer { border-top: 1px solid var(--line); padding-block: 28px; color: var(--muted); font-size: 15px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }
+  footer .links { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+</style>
