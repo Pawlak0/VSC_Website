@@ -1,11 +1,13 @@
 // The list of pages search engines should index, built from the same data as the pages.
 import type { APIRoute } from 'astro';
-import { fylki, hasPage } from '../data/clan';
+import { fylki, hasPage, jarldomMap, news } from '../data/clan';
 
 export const GET: APIRoute = ({ site }) => {
   const pages = [
     '/',
     '/media/',
+    ...(news.on ? ['/news/'] : []),
+    ...(jarldomMap.on ? ['/map/'] : []),
     ...fylki.flatMap((f) => [`/fylki/${f.slug}/`, ...f.flokkr.filter(hasPage).map((k) => `/fylki/${f.slug}/${k.slug}/`)]),
   ];
   const urls = pages.map((p) => `  <url><loc>${new URL(p, site)}</loc></url>`).join('\n');

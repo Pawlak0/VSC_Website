@@ -1,0 +1,56 @@
+---
+import Base from '../../layouts/Base.astro';
+import { DISCORD_URL, fylki, jarldomMap } from '../../data/clan';
+
+// Built only while the map is turned on in the site panel, where each Fylki's banner is also dragged onto its land.
+export function getStaticPaths() {
+  return jarldomMap.on ? [{ params: { page: undefined } }] : [];
+}
+
+const placed = fylki.filter((f) => f.mapAt);
+---
+
+<Base title="Map of the Jarldom" description="The lands of The Völsung Clan in Mount & Blade II: Bannerlord, with the banner of each Fylki on its land.">
+  <section>
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">The Jarldom</p>
+        <h1>Map of the Jarldom</h1>
+        <p>{jarldomMap.intro ?? 'The lands of the Völsung Fylki. Click a banner to visit its Fylki.'}</p>
+      </div>
+      {
+        jarldomMap.picture ? (
+          <div class="map" data-reveal>
+            <img src={jarldomMap.picture} alt="Map of the lands of the Jarldom" />
+            {placed.map((f) => (
+              <a class="pennant" href={`/fylki/${f.slug}/`} style={`left: ${f.mapAt!.x}%; top: ${f.mapAt!.y}%`}>
+                <span class:list={['banner', { todo: !f.banner }]}>{f.banner && <img src={f.banner} alt="" />}</span>
+                <b>{f.name}</b>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p class="none">The map is still being drawn.</p>
+        )
+      }
+      <div class="links" data-reveal>
+        <a class="textlink" href="/#jarldom">Back to the Jarldom</a>
+        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  h1 { font-size: clamp(36px, 7vw, 84px); font-weight: 900; letter-spacing: 0.05em; }
+  /* Banners are sized by the map's width, so they sit the same on a phone as in the panel. */
+  .map { position: relative; container-type: inline-size; border: 1px solid var(--line); --pennant: clamp(24px, 6cqw, 84px); }
+  .map > img { display: block; width: 100%; height: auto; }
+  /* The banner's middle is the point; the name hangs under it. */
+  .map .pennant { position: absolute; transform: translate(-50%, -50%); }
+  .map .pennant .banner { box-shadow: 0 6px 18px rgb(0 0 0 / 0.55); }
+  .map .pennant b { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: rgb(13 13 12 / 0.78); padding: 2px 8px; }
+  @container (max-width: 560px) { .map .pennant b { display: none; } }
+  .none { color: var(--muted); font-style: italic; }
+  .links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; margin-top: 40px; }
+</style>

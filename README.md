@@ -14,10 +14,11 @@ Most text lives in one file: [`src/data/clan.ts`](src/data/clan.ts).
 | --- | --- |
 | "Who we are" points, with a picture or a YouTube video under each | `pillars` |
 | Weekly events | `events` |
-| Fylki (name, banner, Flokkr, description, LS, saga, photos) | `src/data/fylki.json`, editable in the site panel; a Flokkr with a `description` or `lore` gets its own page at `/fylki/<fylki>/<flokkr>/` |
+| Fylki (name, banner, Flokkr, description, LS, saga, photos) | `src/data/fylki.json`, editable in the site panel; a Flokkr has the same fields apart from its own Flokkr, and one with a description, saga, LS or photos gets its own page at `/fylki/<fylki>/<flokkr>/`. The panel's "Make it a Fylki" turns a grown Flokkr into a Fylki, and its old page forwards to the new one (`movedFrom`) |
 | Ranks and leadership | `tiers`, `shieldwall`, `folk`, `leaders` (rank icons go in `public/img/ranks/`, set as `icon`) |
 | Gallery images | `src/data/photos.json`, editable in the site panel; pictures go in `src/assets/gallery/` and the build resizes them; `home: true` also puts one on the home page, the Media page shows all of them |
 | Members' videos | `src/data/videos.json`, editable in the site panel: a YouTube link (title and channel come from YouTube; `title` and `by` override them), or a video that is not on YouTube as `/video/name.mp4` in `public/video/` with a still `name.webp` next to it and a `title`; `home: true` also shows it on the home page above the photos, the Media page shows all of them; both stay hidden while the list is empty |
+| News and the map of the Jarldom | `src/data/pages.json`, editable in the site panel's Pages tab; each page exists only while it is turned `on`. News posts are `{ title, date, text, picture }`; the map is a picture in `public/img/fylki/`, and each Fylki's banner stands at its `mapAt` (`{ x, y }` in percent) in `fylki.json` |
 | Creators (members' channels) | `creators`, as `{ name, url }`; the block shows once the list has someone |
 | Other games | `otherGames`; a picture goes in `public/img/games/` and is set as `image` |
 | Questions above "Join today" | `faq` |

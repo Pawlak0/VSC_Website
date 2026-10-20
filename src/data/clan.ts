@@ -2,6 +2,7 @@
 import photos from './photos.json';
 import videoList from './videos.json';
 import fylkiList from './fylki.json';
+import extraPages from './pages.json';
 import { pageSlug } from '../lib/slug';
 
 export const DISCORD_URL = 'https://discord.gg/volsung-clan';
@@ -116,6 +117,8 @@ export type Fylki = {
   gallery: GalleryImage[];
   /** For a Fylki that grew out of a Flokkr: its old page, e.g. /fylki/nordmorr/tryggr/, which now forwards here (astro.config.mjs). */
   movedFrom?: string;
+  /** Where its banner stands on the map of the Jarldom, in percent of the map's width and height. */
+  mapAt?: { x: number; y: number };
 };
 
 /** What each LS role means, shown on every Fylki and Flokkr page. */
@@ -165,6 +168,7 @@ export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
     lore: (f.lore ?? []).filter(Boolean),
     gallery: photosOf(f.gallery),
     movedFrom: f.movedFrom || undefined,
+    mapAt: Number.isFinite(f.mapAt?.x) && Number.isFinite(f.mapAt?.y) ? { x: f.mapAt!.x, y: f.mapAt!.y } : undefined,
   }));
 
 /** Whether a Flokkr has enough about it for a page of its own. */
@@ -262,6 +266,36 @@ export type Video = {
 };
 
 export const videos = (videoList as Video[]).filter((v) => v?.url);
+
+/** A post on the News page. */
+export type Post = {
+  title: string;
+  /** e.g. 2026-10-20; the newest post comes first. */
+  date: string;
+  /** One string per paragraph. */
+  text: string[];
+  /** A picture in src/assets/gallery/, like the photos. Optional. */
+  picture?: string;
+};
+
+// Pages that are not on the site until they are turned on in the site panel (pages.json): News, and the map of the
+// Jarldom with each Fylki's banner on its land (`mapAt` in fylki.json). The map itself is a picture in /img/fylki/.
+type ExtraPages = { news?: { on?: boolean; posts?: Partial<Post>[] }; map?: { on?: boolean; picture?: string; intro?: string } };
+const extra = extraPages as ExtraPages;
+
+export const news = {
+  on: Boolean(extra.news?.on),
+  posts: (extra.news?.posts ?? [])
+    .filter((p) => p?.title)
+    .map((p): Post => ({ title: p.title!, date: p.date ?? '', text: (p.text ?? []).filter(Boolean), picture: p.picture || undefined }))
+    .sort((a, b) => b.date.localeCompare(a.date)),
+};
+
+export const jarldomMap = {
+  on: Boolean(extra.map?.on),
+  picture: extra.map?.picture || undefined,
+  intro: extra.map?.intro || undefined,
+};
 
 /** Members who stream or make videos. The Creators block stays hidden while the list is empty. */
 export type Creator = {

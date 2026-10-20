@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { DISCORD_URL, fylki } from '../data/clan';
+import { DISCORD_URL, fylki, jarldomMap, news } from '../data/clan';
 
 interface Props {
   title?: string;
@@ -16,13 +16,19 @@ const fullTitle = title ? `${title} · The Völsung Clan` : 'The Völsung Clan �
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 const ogImage = new URL('/img/og.jpg', Astro.site).toString();
 const isHome = Astro.url.pathname === '/';
-// Section links lead to the home page; Media and each Fylki are pages of their own.
+// Section links lead to the home page; Media and each Fylki are pages of their own, and so are News and the map
+// once they are turned on in the site panel.
 type NavLink = { href: string; label: string; sub?: NavLink[] };
 const nav: NavLink[] = [
   { href: '/#events', label: 'Events' },
-  { href: '/#jarldom', label: 'Jarldom', sub: fylki.map((f) => ({ href: `/fylki/${f.slug}/`, label: f.name })) },
+  {
+    href: '/#jarldom',
+    label: 'Jarldom',
+    sub: [...fylki.map((f) => ({ href: `/fylki/${f.slug}/`, label: f.name })), ...(jarldomMap.on ? [{ href: '/map/', label: 'Map of the Jarldom' }] : [])],
+  },
   { href: '/#ranks', label: 'Ranks' },
   { href: '/media/', label: 'Media' },
+  ...(news.on ? [{ href: '/news/', label: 'News' }] : []),
 ];
 const here = Astro.url.pathname.replace(/\/?$/, '/');
 const current = (href: string) => (href === here ? 'page' : undefined);

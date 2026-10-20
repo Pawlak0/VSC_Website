@@ -1,5 +1,5 @@
-// The site panel at /admin/. It edits src/data/photos.json, videos.json and fylki.json, the same files the site is
-// built from, and saves them with any new pictures as one commit on main; the site then rebuilds by itself.
+// The site panel at /admin/. It edits src/data/photos.json, videos.json, fylki.json and pages.json, the same files
+// the site is built from, and saves them with any new pictures as one commit on main; the site then rebuilds by itself.
 import { GitHub, GitHubError, OWNER, REPO, type Change } from './github';
 import { shrink, slugify } from './images';
 import { videoId } from '../lib/videos';
@@ -26,12 +26,22 @@ type Fylki = Flokkr & {
   flokkr?: Flokkr[];
   /** For a Fylki that was a Flokkr: its old page, which the site forwards here. */
   movedFrom?: string;
+  /** Where its banner stands on the map of the Jarldom, in percent of the map's width and height. */
+  mapAt?: { x: number; y: number };
 };
-type Data = { photos: Photo[]; videos: Video[]; fylki: Fylki[] };
+type Post = { title: string; date: string; text?: string[]; picture?: string };
+/** Pages that stay off the site until they are turned on. */
+type Pages = { news: { on?: boolean; posts: Post[] }; map: { on?: boolean; picture?: string; intro?: string } };
+type Data = { photos: Photo[]; videos: Video[]; fylki: Fylki[]; pages: Pages };
 type Key = keyof Data;
 
-const FILES: Record<Key, string> = { photos: 'src/data/photos.json', videos: 'src/data/videos.json', fylki: 'src/data/fylki.json' };
-const NAMES: Record<Key, string> = { photos: 'photos', videos: 'videos', fylki: 'Fylki' };
+const FILES: Record<Key, string> = {
+  photos: 'src/data/photos.json',
+  videos: 'src/data/videos.json',
+  fylki: 'src/data/fylki.json',
+  pages: 'src/data/pages.json',
+};
+const NAMES: Record<Key, string> = { photos: 'photos', videos: 'videos', fylki: 'Fylki', pages: 'pages' };
 const KEYS = Object.keys(FILES) as Key[];
 const ROLES: [Role, string][] = [
   ['leaders', 'Leadership'],
@@ -39,7 +49,7 @@ const ROLES: [Role, string][] = [
   ['merkismadr', 'Merkismaðr'],
   ['hirdmenn', 'Hirðmaðr'],
 ];
-// Photos are built into small copies, so they live in src/; banners and portraits are served as they are.
+// Photos are built into small copies, so they live in src/; banners, portraits and the map are served as they are.
 const GALLERY = '/src/assets/gallery/';
 const FYLKI_IMG = '/img/fylki/';
 const TOKEN_KEY = 'vsc-panel-token';
@@ -83,7 +93,7 @@ let gh: GitHub;
 let login = '';
 /** The commit the panel last loaded or saved; a save builds on it. */
 let base = '';
-let data: Data = { photos: [], videos: [], fylki: [] };
+let data: Data = { photos: [], videos: [], fylki: [], pages: { news: { posts: [] }, map: {} } };
 /** Each data file as it is on GitHub at `base`, to tell what changed. */
 const saved = {} as Record<Key, string>;
 /** Files in the picture folders on GitHub, as repo paths. */
@@ -142,15 +152,15 @@ function input(obj: any, key: string, opts: { placeholder?: string; required?: b
   return opts.area ? h('textarea', { rows: opts.area, ...props }) : h('input', { type: opts.type ?? 'text', ...props });
 }
 
-/** A saga as one text box, paragraphs split by an empty line. */
-function sagaInput(obj: { lore?: string[] }, rows: number) {
+/** A saga or a post as one text box, paragraphs split by an empty line. */
+function sagaInput(obj: { lore?: string[]; text?: string[] }, rows: number, key: 'lore' | 'text' = 'lore') {
   return h('textarea', {
     rows,
     class: 'saga',
-    value: (obj.lore ?? []).join('\n\n'),
+    value: (obj[key] ?? []).join('\n\n'),
     placeholder: 'Leave an empty line between paragraphs.',
     oninput: (e: Event) => {
-      obj.lore = (e.target as HTMLTextAreaElement).value
+      obj[key] = (e.target as HTMLTextAreaElement).value
         .split(/\n\s*\n/)
         .map((p) => p.replace(/\s+/g, ' ').trim())
         .filter(Boolean);
@@ -194,6 +204,24 @@ function move<T>(list: T[], from: number, to: number) {
   changed();
 }
 
+function removeButton(list: unknown[], i: number, redraw: () => void, what: string) {
+  return h(
+    'button',
+    {
+      type: 'button',
+      class: 'remove',
+      title: `Remove this ${what}`,
+      onclick: () => {
+        if (!confirm(`Remove this ${what}? It goes when you save.`)) return;
+        list.splice(i, 1);
+        changed();
+        redraw();
+      },
+    },
+    'Remove',
+  );
+}
+
 /** Move and remove buttons for item `i` of `list`. */
 function tools(list: unknown[], i: number, redraw: () => void, what: string, vertical = false) {
   return h(
@@ -201,21 +229,7 @@ function tools(list: unknown[], i: number, redraw: () => void, what: string, ver
     { class: 'tools' },
     h('button', { type: 'button', title: 'Move earlier', disabled: i === 0, onclick: () => (move(list, i, i - 1), redraw()) }, vertical ? '↑' : '←'),
     h('button', { type: 'button', title: 'Move later', disabled: i === list.length - 1, onclick: () => (move(list, i, i + 2), redraw()) }, vertical ? '↓' : '→'),
-    h(
-      'button',
-      {
-        type: 'button',
-        class: 'remove',
-        title: `Remove this ${what}`,
-        onclick: () => {
-          if (!confirm(`Remove this ${what}? It goes when you save.`)) return;
-          list.splice(i, 1);
-          changed();
-          redraw();
-        },
-      },
-      'Remove',
-    ),
+    removeButton(list, i, redraw, what),
   );
 }
 
@@ -287,9 +301,9 @@ function uniqueValue(dir: string, name: string, ext: string) {
 }
 
 /** Shrinks a picked file and keeps it for the next save. Returns the value to write in the data. */
-async function addPicture(file: File, kind: 'photo' | 'banner' | 'portrait', name = file.name) {
+async function addPicture(file: File, kind: 'photo' | 'banner' | 'portrait' | 'map', name = file.name) {
   const png = kind === 'banner';
-  const blob = await shrink(file, kind === 'photo' ? 2560 : 900, png ? 'image/png' : 'image/jpeg');
+  const blob = await shrink(file, kind === 'photo' || kind === 'map' ? 2560 : 900, png ? 'image/png' : 'image/jpeg');
   const value = uniqueValue(kind === 'photo' ? GALLERY : FYLKI_IMG, slugify(name), png ? 'png' : 'jpg');
   uploads.set(repoPath(value), blob);
   previews.set(value, URL.createObjectURL(blob));
@@ -312,6 +326,8 @@ function pictures(d: Data): Set<string> {
     for (const [role] of ROLES) u.ls?.[role]?.forEach((m) => add(m.portrait));
     u.gallery?.forEach((p) => add(p.src));
   }
+  d.pages?.news?.posts?.forEach((p) => add(p.picture));
+  add(d.pages?.map?.picture);
   return out;
 }
 
@@ -813,6 +829,173 @@ function fylkiView() {
   );
 }
 
+// ---------- pages that can be turned on ----------
+
+function postCard(list: Post[], i: number, redraw: () => void) {
+  const p = list[i];
+  const img = h('img', { alt: '' });
+  showImage(img, p.picture);
+  const pick = () =>
+    pickFiles(false, async ([file]) => {
+      if (!file) return;
+      p.picture = await addPicture(file, 'photo');
+      changed();
+      redraw();
+    });
+  return h(
+    'article',
+    { class: 'post' },
+    h(
+      'div',
+      { class: 'post-pic' },
+      h('div', { class: `pic${p.picture ? '' : ' empty'}` }, p.picture ? img : h('span', {}, 'No picture')),
+      h(
+        'div',
+        { class: 'tools' },
+        h('button', { type: 'button', onclick: pick }, p.picture ? 'Replace' : 'Add picture'),
+        p.picture ? h('button', { type: 'button', class: 'remove', onclick: () => (delete p.picture, changed(), redraw()) }, 'Remove') : null,
+      ),
+    ),
+    h(
+      'div',
+      { class: 'fields' },
+      h('div', { class: 'row' }, field('Title', input(p, 'title', { required: true, placeholder: 'e.g. Tryggr takes the field' })), field('Date', input(p, 'date', { type: 'date', required: true }))),
+      field('Text', sagaInput(p, 6, 'text')),
+      h('div', { class: 'tools' }, removeButton(list, i, redraw, 'post')),
+    ),
+  );
+}
+
+function newsBox(news: Pages['news']) {
+  const list = h('div', { class: 'posts' });
+  const redraw = () =>
+    list.replaceChildren(...(news.posts.length ? news.posts.map((_, i) => postCard(news.posts, i, redraw)) : [h('p', { class: 'meta' }, 'No posts yet.')]));
+  redraw();
+  const add = () => {
+    news.posts.unshift({ title: '', date: new Date().toISOString().slice(0, 10), text: [] });
+    changed();
+    redraw();
+    (list.querySelector('input[data-required]') as HTMLInputElement | null)?.focus();
+  };
+  return h(
+    'div',
+    { class: 'page-box' },
+    h(
+      'div',
+      { class: 'bar' },
+      h('div', {}, h('h3', {}, 'News'), h('p', { class: 'meta' }, 'A page at /news/ with the newest post first. While it is off, the page does not exist.')),
+      h('div', { class: 'add' }, toggle(news, 'on', 'On the site'), h('button', { type: 'button', class: 'btn btn-gold', onclick: add }, 'Add post')),
+    ),
+    list,
+  );
+}
+
+const keep = (n: number) => Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
+
+/** The map with a banner for each Fylki on it, dragged into place; a Fylki is put on or taken off with its button. */
+function mapEditor(picture: string, redraw: () => void) {
+  const img = h('img', { alt: '' });
+  img.draggable = false;
+  showImage(img, picture);
+  const stage = h('div', { class: 'map-stage' }, img);
+  for (const f of data.fylki.filter((x) => x.mapAt)) {
+    const flag = h('img', { alt: '' });
+    flag.draggable = false;
+    showImage(flag, f.banner);
+    const pin = h('div', { class: 'map-pin', title: `Drag ${f.name || 'this Fylki'} onto its land` }, h('span', { class: 'banner-pic' }, f.banner ? flag : null), h('b', {}, f.name || 'New Fylki'));
+    const place = () => ((pin.style.left = `${f.mapAt!.x}%`), (pin.style.top = `${f.mapAt!.y}%`));
+    place();
+    pin.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      pin.setPointerCapture(e.pointerId);
+      // Where on the banner it was grabbed, so it does not jump under the pointer.
+      const r = pin.querySelector('.banner-pic')!.getBoundingClientRect();
+      const dx = e.clientX - (r.left + r.width / 2);
+      const dy = e.clientY - (r.top + r.height / 2);
+      const drag = (ev: PointerEvent) => {
+        const s = stage.getBoundingClientRect();
+        f.mapAt = { x: keep(((ev.clientX - dx - s.left) / s.width) * 100), y: keep(((ev.clientY - dy - s.top) / s.height) * 100) };
+        place();
+      };
+      pin.addEventListener('pointermove', drag);
+      pin.addEventListener('pointerup', () => (pin.removeEventListener('pointermove', drag), changed()), { once: true });
+    });
+    stage.append(pin);
+  }
+  return h(
+    'div',
+    { class: 'map-edit' },
+    stage,
+    h(
+      'div',
+      { class: 'tools' },
+      ...data.fylki.map((f, i) =>
+        f.mapAt
+          ? h('button', { type: 'button', onclick: () => (delete f.mapAt, changed(), redraw()) }, `Take ${f.name || 'New Fylki'} off`)
+          : // Side by side across the middle, so banners put on one after another do not cover each other.
+            h('button', { type: 'button', onclick: () => ((f.mapAt = { x: 15 + ((i * 17) % 75), y: 50 }), changed(), redraw()) }, `Put ${f.name || 'New Fylki'} on the map`),
+      ),
+    ),
+  );
+}
+
+function mapBox(map: Pages['map']) {
+  const box = h('div', { class: 'page-box' });
+  const redraw = () =>
+    box.replaceChildren(
+      ...present(
+        h(
+          'div',
+          { class: 'bar' },
+          h(
+            'div',
+            {},
+            h('h3', {}, 'Map of the Jarldom'),
+            h('p', { class: 'meta' }, 'A page at /map/ with each Fylki’s banner on its land; a click on a banner opens the Fylki. It is also linked from the Jarldom menu and the home page.'),
+          ),
+          h('div', { class: 'add' }, toggle(map, 'on', 'On the site')),
+        ),
+        field('Text over the map', input(map, 'intro', { area: 2, placeholder: 'The lands of the Völsung Fylki. Click a banner to visit its Fylki.' })),
+        h(
+          'div',
+          { class: 'tools' },
+          h(
+            'button',
+            {
+              type: 'button',
+              class: 'btn btn-ghost',
+              onclick: () =>
+                pickFiles(false, async ([file]) => {
+                  if (!file) return;
+                  map.picture = await addPicture(file, 'map', 'jarldom-map');
+                  changed();
+                  redraw();
+                }),
+            },
+            map.picture ? 'Replace the map' : 'Upload the map',
+          ),
+          map.picture ? h('button', { type: 'button', class: 'remove', onclick: () => (delete map.picture, changed(), redraw()) }, 'Remove the map') : null,
+        ),
+        map.picture
+          ? h('p', { class: 'meta' }, 'Drag each banner onto its land. The banners grow and shrink with the map, as on the site.')
+          : h('p', { class: 'meta' }, 'No map yet. Until there is one, the page says the map is still being drawn.'),
+        map.picture ? mapEditor(map.picture, redraw) : null,
+      ),
+    );
+  redraw();
+  return box;
+}
+
+function pagesView() {
+  return h(
+    'section',
+    {},
+    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Pages'), h('p', {}, 'Pages that stay off the site until you turn them on. One that is on shows in the menu.'))),
+    newsBox(data.pages.news),
+    mapBox(data.pages.map),
+  );
+}
+
 // ---------- saving ----------
 
 function pending() {
@@ -850,7 +1033,8 @@ function missing(): HTMLElement | null {
   const bad =
     data.photos.some((p) => !p.alt?.trim() || !p.src) ||
     data.videos.some((v) => !v.url?.trim()) ||
-    units(data).some((u) => !u.name?.trim() || ROLES.some(([r]) => u.ls?.[r]?.some((m) => !m.name?.trim())) || u.gallery?.some((p) => !p.alt?.trim()));
+    units(data).some((u) => !u.name?.trim() || ROLES.some(([r]) => u.ls?.[r]?.some((m) => !m.name?.trim())) || u.gallery?.some((p) => !p.alt?.trim())) ||
+    data.pages.news.posts.some((p) => !p.title?.trim());
   return bad ? document.body : null;
 }
 
@@ -866,7 +1050,7 @@ async function save() {
   const first = missing();
   if (first) {
     if (first !== document.body) first.focus();
-    return message('Some required fields are empty: every photo needs a description, every video a link, and every Fylki, Flokkr and member a name. Empty ones are marked red, or on another tab.', 'error');
+    return message('Some required fields are empty: every photo needs a description, every video a link, every Fylki, Flokkr and member a name, and every post a title. Empty ones are marked red, or on another tab.', 'error');
   }
   const { files, added, removed } = pending();
   busy = true;
@@ -928,20 +1112,21 @@ function setCols(n: string) {
 function render() {
   remember(TAB_KEY, tab, 'session');
   document.querySelectorAll<HTMLButtonElement>('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-  const view = tab === 'photos' ? photosView() : tab === 'videos' ? videosView() : fylkiView();
+  const view = tab === 'photos' ? photosView() : tab === 'videos' ? videosView() : tab === 'fylki' ? fylkiView() : pagesView();
   $('content').replaceChildren(view);
 }
 
 async function load() {
   base = await gh.head();
-  const [photos, videos, fylki, galleryFiles, fylkiFiles] = await Promise.all([
+  const [photos, videos, fylki, pages, galleryFiles, fylkiFiles] = await Promise.all([
     gh.text(FILES.photos, base),
     gh.text(FILES.videos, base),
     gh.text(FILES.fylki, base),
+    gh.text(FILES.pages, base),
     gh.list(GALLERY.slice(1, -1), base),
     gh.list(`public${FYLKI_IMG.slice(0, -1)}`, base),
   ]);
-  data = { photos: JSON.parse(photos), videos: JSON.parse(videos), fylki: JSON.parse(fylki) };
+  data = { photos: JSON.parse(photos), videos: JSON.parse(videos), fylki: JSON.parse(fylki), pages: JSON.parse(pages) };
   for (const k of KEYS) saved[k] = serialize(data[k]);
   repoFiles = new Set([...galleryFiles, ...fylkiFiles]);
   try {
