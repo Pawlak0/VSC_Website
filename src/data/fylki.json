@@ -96,7 +96,8 @@
     "colors": {
       "accent": "#e8b24a"
     },
-    "mapNameAbove": true
+    "mapNameAbove": true,
+    "shape": "slanted"
   },
   {
     "slug": "kattegat",
