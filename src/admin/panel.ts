@@ -1154,7 +1154,7 @@ function mapView() {
             'div',
             {},
             h('h2', {}, 'Map of the Jarldom'),
-            h('p', {}, 'A page with the banners of the clan, its Fylki and Flokkr on their lands; a click on a banner opens its page. While it is on, the Jarldom menu and the home page link to it.'),
+            h('p', {}, 'A page with the banners of the clan, its Fylki and Flokkr on their lands; a click on a banner opens its page. While it is on, the menu at the top and the home page link to it.'),
           ),
           h('div', { class: 'add switch' }, toggle(map, 'on', 'On the site')),
         ),

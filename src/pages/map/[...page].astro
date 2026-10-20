@@ -2,6 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import '../../styles/jarldom-map.css';
 import { DISCORD_URL, fylki, hasPage, jarldomMap, type PinSize, type Spot } from '../../data/clan';
+import { mapPicture } from '../../lib/map-picture';
 
 // Built only while the map is turned on in the site panel, where every banner is also dragged onto its place.
 export function getStaticPaths() {
@@ -9,6 +10,10 @@ export function getStaticPaths() {
 }
 
 type Pin = { name: string; banner?: string; main?: boolean; href?: string; external?: boolean; size: PinSize; at: Spot };
+// The whole map for big screens, a smaller copy for the rest; it fills the page's width, at most 1148px.
+const picture = await mapPicture();
+const srcset = picture?.copies.length ? [...picture.copies.map((c) => `${c.src} ${c.width}w`), `${jarldomMap.picture} ${picture.width}w`].join(', ') : undefined;
+
 const pins: Pin[] = [
   ...(jarldomMap.clanAt ? [{ name: 'The Völsung Clan', main: true, href: '/#jarldom', size: 'big' as const, at: jarldomMap.clanAt }] : []),
   ...fylki.flatMap((f) => [
@@ -33,7 +38,14 @@ const pins: Pin[] = [
       {
         jarldomMap.picture ? (
           <div class:list={['jarldom', { nameless: !jarldomMap.names }]} data-reveal>
-            <img src={jarldomMap.picture} alt="Map of the lands of the Jarldom" />
+            <img
+              src={jarldomMap.picture}
+              srcset={srcset}
+              sizes={srcset && '(min-width: 1180px) 1148px, calc(100vw - 32px)'}
+              width={picture?.width}
+              height={picture?.height}
+              alt="Map of the lands of the Jarldom"
+            />
             {jarldomMap.labels.map((l) => (
               <span class:list={['map-label', l.size, { light: l.light }]} style={`left: ${l.at.x}%; top: ${l.at.y}%; --tilt: ${l.tilt}deg`}>
                 {l.text}

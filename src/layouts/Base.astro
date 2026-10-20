@@ -24,11 +24,8 @@ const isHome = Astro.url.pathname === '/';
 type NavLink = { href: string; label: string; sub?: NavLink[] };
 const nav: NavLink[] = [
   { href: '/#events', label: 'Events' },
-  {
-    href: '/#jarldom',
-    label: 'Jarldom',
-    sub: [...fylki.map((f) => ({ href: `/fylki/${f.slug}/`, label: f.name })), ...(jarldomMap.on ? [{ href: '/map/', label: 'Map of the Jarldom' }] : [])],
-  },
+  { href: '/#jarldom', label: 'Jarldom', sub: fylki.map((f) => ({ href: `/fylki/${f.slug}/`, label: f.name })) },
+  ...(jarldomMap.on ? [{ href: '/map/', label: 'Map' }] : []),
   { href: '/#ranks', label: 'Ranks' },
   { href: '/media/', label: 'Media' },
   ...(news.on ? [{ href: '/news/', label: 'News' }] : []),

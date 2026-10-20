@@ -190,7 +190,7 @@ const platform = (url: string) => {
         {
           fylki.map((f) => (
             <div>
-              <FylkiBanner fylki={f} href={`/fylki/${f.slug}/`} />
+              <FylkiBanner fylki={f} href={`/fylki/${f.slug}/`} lazy />
               <FlokkrList fylki={f} />
             </div>
           ))
@@ -335,7 +335,7 @@ const platform = (url: string) => {
   </section>
 
   <section class="join" id="join">
-    <img class="bg" src="/img/castle-muster.webp" alt="" aria-hidden="true" />
+    <img class="bg" src="/img/castle-muster.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" />
     <div class="wrap">
       <div class="head" data-stagger>
         <p class="eyebrow">Join today</p>
@@ -424,7 +424,7 @@ const platform = (url: string) => {
   /* As a grid item with auto margins the wrap would shrink to its text; full width keeps it in line with the logo. */
   .hero .wrap { width: 100%; padding-block: clamp(72px, 12vw, 150px) clamp(56px, 8vw, 96px); display: grid; gap: 26px; }
   .hero h1 { font-family: var(--f-title); font-weight: 400; font-size: clamp(52px, 9.4vw, 124px); letter-spacing: 0.02em; line-height: 0.92; max-width: 9ch; }
-  .hero h1 small { display: block; font-size: 0.34em; letter-spacing: 0.06em; color: var(--gold); margin-bottom: 0.3em; }
+  .hero h1 small { display: block; font-size: 0.34em; letter-spacing: 0.06em; margin-bottom: 0.3em; }
   .hero .lede { max-width: 34ch; font-size: clamp(19px, 2vw, 23px); }
   .ctas { display: flex; flex-wrap: wrap; gap: 12px; }
   /* Over the shields a see-through button vanishes, so both keep a dark ground (also while hovered). */
