@@ -20,7 +20,7 @@
   {
     "src": "/src/assets/gallery/snow-shieldwall.webp",
     "alt": "Shieldwall in a snowy forest",
-    "size": "normal",
+    "size": "big",
     "home": true
   },
   {
@@ -32,7 +32,7 @@
   {
     "src": "/src/assets/gallery/meadow-wall.webp",
     "alt": "Long shieldwall across a meadow",
-    "size": "normal",
+    "size": "wide",
     "home": true
   },
   {
