@@ -4,6 +4,7 @@
     "posts": []
   },
   "map": {
-    "on": false
+    "on": true,
+    "picture": "/img/fylki/jarldom-map.jpg"
   }
 }
