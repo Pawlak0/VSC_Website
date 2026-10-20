@@ -119,7 +119,7 @@ export type Fylki = {
   name: string;
   /** Short line under the banner, e.g. "Fylki of the Jarl". Optional. */
   subtitle?: string;
-  /** Path under /public, e.g. /img/fylki/nordmorr.png. Leave empty until the banner is ready. */
+  /** Path under /public, e.g. /img/fylki/nordmorr.webp. Leave empty until the banner is ready. */
   banner?: string;
   flokkr: Flokkr[];
   description: string;

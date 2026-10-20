@@ -25,7 +25,7 @@ Most text lives in one file: [`src/data/clan.ts`](src/data/clan.ts).
 | Questions above "Join today" | `faq` |
 | Discord invite | `DISCORD_URL` |
 
-A Fylki banner goes in `public/img/fylki/`, for example `public/img/fylki/nordmorr.png`, and is set as `"banner": "/img/fylki/nordmorr.png"`. Every entry in `fylki.json` gets its own page at `/fylki/<slug>/`; without a `slug` the address is made from the name (Norðmǿrr becomes `nordmorr`).
+A Fylki banner goes in `public/img/fylki/`, for example `public/img/fylki/nordmorr.webp`, and is set as `"banner": "/img/fylki/nordmorr.webp"`. Every entry in `fylki.json` gets its own page at `/fylki/<slug>/`; without a `slug` the address is made from the name (Norðmǿrr becomes `nordmorr`).
 
 Each Fylki's LS (leadership) is set in its `ls` field, with four lists: `leaders`, `thegns`, `merkismadr` and `hirdmenn`. A member looks like `{ "name": "Leon", "title": "Lendr Maðr · Infantry", "portrait": "/img/fylki/leon.jpg" }`; `title` and `portrait` are optional.
 

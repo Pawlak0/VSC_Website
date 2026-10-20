@@ -3,7 +3,7 @@
     "slug": "nordmorr",
     "name": "Norðmǿrr",
     "subtitle": "Fylki of the Jarl",
-    "banner": "/img/fylki/nordmorr.png",
+    "banner": "/img/fylki/nordmorr.webp",
     "description": "The royal house of the North, where kingship and military strength are inseparable. To wear its crown is to accept a burden as much as an honour.",
     "flokkr": [
       {
@@ -100,7 +100,7 @@
   {
     "slug": "kattegat",
     "name": "Kattegat",
-    "banner": "/img/fylki/kattegat.png",
+    "banner": "/img/fylki/kattegat.webp",
     "description": "Description to come.",
     "flokkr": [],
     "ls": {
