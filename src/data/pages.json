@@ -1,6 +1,6 @@
 {
   "news": {
-    "on": false,
+    "on": true,
     "posts": [
       {
         "title": "Test",
