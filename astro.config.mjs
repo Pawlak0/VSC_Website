@@ -1,7 +1,16 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import { readFileSync } from 'node:fs';
 import { readdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pageSlug } from './src/lib/slug';
+
+// A Flokkr that became a Fylki keeps its old page address working: the panel writes it as `movedFrom`.
+const movedFlokkr = Object.fromEntries(
+  JSON.parse(readFileSync(new URL('./src/data/fylki.json', import.meta.url), 'utf8'))
+    .filter((/** @type {{ name?: string, movedFrom?: string }} */ f) => f.name && f.movedFrom)
+    .map((/** @type {{ name: string, slug?: string, movedFrom: string }} */ f) => [f.movedFrom.replace(/\/$/, ''), `/fylki/${pageSlug(f.slug || f.name)}/`]),
+);
 
 // Photos uploaded through the panel can be full-size screenshots. The pages use only the resized copies, so the
 // originals the build also copies out are left unpublished. The panel's thumbs.json counts as using its tiles.
@@ -28,5 +37,6 @@ export default defineConfig({
     '/fylki/nordmor': '/fylki/nordmorr/',
     '/fylki/kattegad': '/fylki/kattegat/',
     '/gallery': '/media/',
+    ...movedFlokkr,
   },
 });

@@ -3,24 +3,29 @@
 import { GitHub, GitHubError, OWNER, REPO, type Change } from './github';
 import { shrink, slugify } from './images';
 import { videoId } from '../lib/videos';
+import { pageSlug } from '../lib/slug';
 
 type Size = 'normal' | 'wide' | 'big';
 type Photo = { src: string; alt: string; size?: Size; home?: boolean };
 type Video = { url: string; title?: string; by?: string; poster?: string; home?: boolean };
 type Member = { name: string; title?: string; portrait?: string };
 type Role = 'leaders' | 'thegns' | 'merkismadr' | 'hirdmenn';
-type Flokkr = { name: string; slug?: string; subtitle?: string; banner?: string; description?: string; loreTitle?: string; lore?: string[] };
-type Fylki = {
-  slug?: string;
+/** A Flokkr has every field of a Fylki apart from its own Flokkr, so one that grows can become a Fylki as it is. */
+type Flokkr = {
   name: string;
+  slug?: string;
   subtitle?: string;
   banner?: string;
   description?: string;
-  flokkr?: Flokkr[];
   ls?: Partial<Record<Role, Member[]>>;
   loreTitle?: string;
   lore?: string[];
   gallery?: Photo[];
+};
+type Fylki = Flokkr & {
+  flokkr?: Flokkr[];
+  /** For a Fylki that was a Flokkr: its old page, which the site forwards here. */
+  movedFrom?: string;
 };
 type Data = { photos: Photo[]; videos: Video[]; fylki: Fylki[] };
 type Key = keyof Data;
@@ -44,6 +49,12 @@ const COLS_KEY = 'vsc-panel-cols';
 const repoPath = (value: string) => (value.startsWith(GALLERY) ? value.slice(1) : `public${value}`);
 const managed = (value?: string) => !!value && (value.startsWith(GALLERY) || value.startsWith(FYLKI_IMG));
 const serialize = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
+const slugOf = (u: Flokkr) => pageSlug(u.slug || u.name);
+/** Every Fylki and Flokkr; they have the same pictures and required fields. */
+const units = (d: Data): Flokkr[] => d.fylki.flatMap((f) => [f, ...(f.flokkr ?? [])]);
+/** Whether a Flokkr has its own page on the site, as hasPage in src/data/clan.ts decides. */
+const hasPage = (k: Flokkr) =>
+  Boolean(k.description?.trim() || k.lore?.length || k.gallery?.length || ROLES.some(([r]) => k.ls?.[r]?.some((m) => m.name?.trim())));
 
 function store(kind: 'local' | 'session') {
   try {
@@ -85,6 +96,8 @@ const previews = new Map<string, string>();
 let thumbs: Record<string, string> = {};
 let tab: Key = (recall(TAB_KEY, 'session') as Key) || 'photos';
 let fylkiIndex = 0;
+/** The Flokkr of that Fylki open in the form, or null for the Fylki itself. */
+let flokkrIndex: number | null = null;
 let busy = false;
 
 // ---------- small DOM helpers ----------
@@ -105,6 +118,8 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, 
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+/** Children for replaceChildren, which would write a skipped one out as "null". */
+const present = (...kids: Kid[]) => kids.filter((k): k is Node | string => k !== null && k !== undefined && k !== false);
 
 /** Writes a field; an emptied optional field is left out of the file rather than kept as "". */
 function setField(obj: any, key: string, value: string, keepEmpty = false) {
@@ -292,11 +307,10 @@ function pictures(d: Data): Set<string> {
   const out = new Set<string>();
   const add = (v?: string) => managed(v) && out.add(v!);
   d.photos.forEach((p) => add(p.src));
-  for (const f of d.fylki) {
-    add(f.banner);
-    f.flokkr?.forEach((k) => add(k.banner));
-    for (const [role] of ROLES) f.ls?.[role]?.forEach((m) => add(m.portrait));
-    f.gallery?.forEach((p) => add(p.src));
+  for (const u of units(d)) {
+    add(u.banner);
+    for (const [role] of ROLES) u.ls?.[role]?.forEach((m) => add(m.portrait));
+    u.gallery?.forEach((p) => add(p.src));
   }
   return out;
 }
@@ -498,14 +512,14 @@ function memberRow(list: Member[], i: number, redraw: () => void) {
   );
 }
 
-function lsBox(f: Fylki) {
+function lsBox(u: Flokkr) {
   return h(
     'div',
     { class: 'ls' },
     ...ROLES.map(([role, name]) => {
       const col = h('div', { class: 'role' });
       const redraw = () => {
-        const list = f.ls?.[role] ?? [];
+        const list = u.ls?.[role] ?? [];
         col.replaceChildren(
           h('h4', {}, name),
           ...list.map((_, i) => memberRow(list, i, redraw)),
@@ -515,7 +529,7 @@ function lsBox(f: Fylki) {
               type: 'button',
               class: 'btn btn-ghost small',
               onclick: () => {
-                ((f.ls ??= {})[role] ??= []).push({ name: '' });
+                ((u.ls ??= {})[role] ??= []).push({ name: '' });
                 changed();
                 redraw();
                 (col.querySelector('.member:last-of-type input') as HTMLInputElement | null)?.focus();
@@ -531,29 +545,36 @@ function lsBox(f: Fylki) {
   );
 }
 
+/** Opens a Flokkr's own form, or the Fylki's form again with `null`. */
+function openFlokkr(i: number | null) {
+  flokkrIndex = i;
+  render();
+  if (i === null) document.querySelector('.flokkr-list')?.scrollIntoView({ block: 'center' });
+  else window.scrollTo(0, 0);
+}
+
+/** The Flokkr of a Fylki as small cards; each one opens a form like the Fylki's own. */
 function flokkrBox(f: Fylki) {
   const box = h('div', { class: 'flokkr-list' });
   const redraw = () => {
     const list = f.flokkr ?? [];
     box.replaceChildren(
       ...list.map((k, i) => {
-        const card = h('article', { class: 'flokkr' });
-        const draw = () =>
-          card.replaceChildren(
-            bannerBox(k, draw),
-            h(
-              'div',
-              { class: 'fields' },
-              field('Name', input(k, 'name', { required: true, placeholder: 'e.g. Tryggr' }), 'Without the word Flokkr.'),
-              field('Line under the banner', input(k, 'subtitle', { placeholder: 'Optional' })),
-              field('Description', input(k, 'description', { area: 3 }), 'With a description or a saga, the Flokkr gets its own page.'),
-              field('Saga title', input(k, 'loreTitle', { placeholder: 'e.g. The Sworn Warband of Norðmǿrr Fylki' })),
-              field('Saga', sagaInput(k, 8)),
-              tools(list, i, redraw, 'Flokkr'),
-            ),
-          );
-        draw();
-        return card;
+        const img = h('img', { alt: '' });
+        showImage(img, k.banner);
+        return h(
+          'article',
+          { class: 'flokkr-card' },
+          h('div', { class: `banner-pic${k.banner ? '' : ' empty'}` }, k.banner ? img : h('span', {}, 'Banner')),
+          h(
+            'div',
+            { class: 'fields' },
+            h('b', {}, k.name || 'New Flokkr'),
+            h('small', {}, hasPage(k) ? `Own page at /fylki/${slugOf(f)}/${slugOf(k)}/` : 'Only its banner on the Fylki page, until it has a description, saga, LS or photos.'),
+            h('button', { type: 'button', class: 'btn btn-ghost small', onclick: () => openFlokkr(i) }, 'Edit'),
+            tools(list, i, redraw, 'Flokkr'),
+          ),
+        );
       }),
       h(
         'button',
@@ -563,7 +584,7 @@ function flokkrBox(f: Fylki) {
           onclick: () => {
             (f.flokkr ??= []).push({ name: '' });
             changed();
-            redraw();
+            openFlokkr(f.flokkr.length - 1);
           },
         },
         'Add Flokkr',
@@ -572,6 +593,33 @@ function flokkrBox(f: Fylki) {
   };
   redraw();
   return box;
+}
+
+/** A Flokkr that has grown becomes a Fylki with everything it has, and its old page forwards to the new one. */
+function promote(k: Flokkr, parent: Fylki) {
+  const slug = slugOf(k);
+  if (!k.name.trim()) return alert('Give this Flokkr a name first.');
+  if (data.fylki.some((x) => slugOf(x) === slug)) return alert(`There is already a Fylki at /fylki/${slug}/. Change this Flokkr's page address first.`);
+  if (!confirm(`Make ${k.name} a Fylki of its own? It leaves ${parent.name} and keeps its banner, saga, LS and photos. It happens when you save.`)) return;
+  parent.flokkr!.splice(parent.flokkr!.indexOf(k), 1);
+  data.fylki.push({
+    slug,
+    name: k.name,
+    subtitle: k.subtitle,
+    banner: k.banner,
+    description: k.description ?? '',
+    flokkr: [],
+    ls: k.ls,
+    loreTitle: k.loreTitle,
+    lore: k.lore,
+    gallery: k.gallery,
+    movedFrom: hasPage(k) ? `/fylki/${slugOf(parent)}/${slug}/` : undefined,
+  });
+  fylkiIndex = data.fylki.length - 1;
+  flokkrIndex = null;
+  changed();
+  render();
+  window.scrollTo(0, 0);
 }
 
 function pickFromPhotos(onPick: (p: Photo[]) => void) {
@@ -605,88 +653,114 @@ function pickFromPhotos(onPick: (p: Photo[]) => void) {
   dialog.showModal();
 }
 
-function fylkiForm(f: Fylki) {
+/** The form of a Fylki, or of one of its Flokkr when `parent` is given: both have the same fields. */
+function unitForm(u: Fylki, parent?: Fylki) {
+  const what = parent ? 'Flokkr' : 'Fylki';
   const form = h('div', { class: 'fylki-form' });
   const redraw = () => {
-    const gallery = f.gallery ?? [];
+    const gallery = u.gallery ?? [];
     const { grid } = photoGrid(gallery, false);
     const status = h('span', { class: 'status' });
     form.replaceChildren(
-      h(
-        'div',
-        { class: 'panel-box basics' },
-        bannerBox(f, redraw),
+      ...present(
         h(
           'div',
-          { class: 'fields' },
-          field('Name', input(f, 'name', { required: true })),
-          field('Page address', input(f, 'slug', { placeholder: 'Made from the name' }), `The part after /fylki/ in the link. Changing it breaks links people already shared.`),
-          field('Line under the banner', input(f, 'subtitle', { placeholder: 'e.g. Fylki of the Jarl' })),
-          field('Description', input(f, 'description', { area: 3 }), 'One or two sentences under the name.'),
+          { class: 'panel-box basics' },
+          bannerBox(u, redraw),
+          h(
+            'div',
+            { class: 'fields' },
+            field('Name', input(u, 'name', { required: true, placeholder: parent ? 'e.g. Tryggr' : '' }), parent ? 'Without the word Flokkr.' : undefined),
+            field(
+              'Page address',
+              input(u, 'slug', { placeholder: 'Made from the name' }),
+              `The part after /fylki/${parent ? `${slugOf(parent)}/` : ''} in the link. Changing it breaks links people already shared.`,
+            ),
+            field('Line under the banner', input(u, 'subtitle', { placeholder: parent ? 'Optional' : 'e.g. Fylki of the Jarl' })),
+            field(
+              'Description',
+              input(u, 'description', { area: 3 }),
+              parent ? 'With a description, saga, LS or photos, the Flokkr gets its own page.' : 'One or two sentences under the name.',
+            ),
+          ),
         ),
-      ),
-      h('h3', {}, 'Saga'),
-      h(
-        'div',
-        { class: 'panel-box' },
-        field('Saga title', input(f, 'loreTitle', { placeholder: 'e.g. The Royal House of the North' })),
-        field('Saga', sagaInput(f, 16), 'Past four paragraphs the rest folds under “Read the whole saga”.'),
-      ),
-      h('h3', {}, 'Flokkr'),
-      flokkrBox(f),
-      h('h3', {}, 'LS (leadership)'),
-      h('p', { class: 'meta' }, 'An empty list shows as “To be announced”. The leader goes first.'),
-      lsBox(f),
-      h('h3', {}, `Photos of ${f.name || 'this Fylki'}`),
-      h(
-        'div',
-        { class: 'tools' },
+        !parent && u.movedFrom ? h('p', { class: 'meta' }, `This Fylki grew out of a Flokkr. Its old page, ${u.movedFrom}, forwards here.`) : null,
+        h('h3', {}, 'Saga'),
         h(
-          'button',
-          {
-            type: 'button',
-            class: 'btn btn-ghost',
-            onclick: () =>
-              pickFromPhotos((picked) => {
-                (f.gallery ??= []).push(...picked);
+          'div',
+          { class: 'panel-box' },
+          field('Saga title', input(u, 'loreTitle', { placeholder: parent ? 'e.g. The Sworn Warband of Norðmǿrr Fylki' : 'e.g. The Royal House of the North' })),
+          field('Saga', sagaInput(u, parent ? 10 : 16), parent ? undefined : 'Past four paragraphs the rest folds under “Read the whole saga”.'),
+        ),
+        parent ? null : h('h3', {}, 'Flokkr'),
+        parent ? null : flokkrBox(u),
+        h('h3', {}, 'LS (leadership)'),
+        h('p', { class: 'meta' }, 'An empty list shows as “To be announced”. The leader goes first.'),
+        lsBox(u),
+        h('h3', {}, `Photos of ${u.name || `this ${what}`}`),
+        h(
+          'div',
+          { class: 'tools' },
+          h(
+            'button',
+            {
+              type: 'button',
+              class: 'btn btn-ghost',
+              onclick: () =>
+                pickFromPhotos((picked) => {
+                  (u.gallery ??= []).push(...picked);
+                  changed();
+                  redraw();
+                }),
+            },
+            'Pick from clan photos',
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              class: 'btn btn-ghost',
+              onclick: () => {
+                u.gallery ??= [];
+                uploadPhotos(u.gallery, redraw, status);
+              },
+            },
+            'Upload photos',
+          ),
+          status,
+        ),
+        gallery.length ? grid : h('p', { class: 'meta' }, 'No photos yet; the section stays hidden on the page.'),
+        h(
+          'div',
+          { class: 'danger' },
+          parent
+            ? h(
+                'div',
+                { class: 'promote' },
+                h('button', { type: 'button', class: 'btn btn-ghost', onclick: () => promote(u, parent) }, 'Make it a Fylki'),
+                h('small', {}, 'For when it grows big enough: it becomes a Fylki with everything above, and its old page forwards to the new one.'),
+              )
+            : null,
+          h(
+            'button',
+            {
+              type: 'button',
+              class: 'remove',
+              onclick: () => {
+                if (!confirm(`Remove ${u.name || `this ${what}`} and its page from the site? It goes when you save.`)) return;
+                if (parent) {
+                  parent.flokkr!.splice(parent.flokkr!.indexOf(u), 1);
+                } else {
+                  data.fylki.splice(data.fylki.indexOf(u), 1);
+                  fylkiIndex = 0;
+                }
+                flokkrIndex = null;
                 changed();
-                redraw();
-              }),
-          },
-          'Pick from clan photos',
-        ),
-        h(
-          'button',
-          {
-            type: 'button',
-            class: 'btn btn-ghost',
-            onclick: () => {
-              f.gallery ??= [];
-              uploadPhotos(f.gallery, redraw, status);
+                render();
+              },
             },
-          },
-          'Upload photos',
-        ),
-        status,
-      ),
-      gallery.length ? grid : h('p', { class: 'meta' }, 'No photos yet; the section stays hidden on the page.'),
-      h(
-        'div',
-        { class: 'danger' },
-        h(
-          'button',
-          {
-            type: 'button',
-            class: 'remove',
-            onclick: () => {
-              if (!confirm(`Remove ${f.name || 'this Fylki'} and its page from the site? It goes when you save.`)) return;
-              data.fylki.splice(data.fylki.indexOf(f), 1);
-              fylkiIndex = 0;
-              changed();
-              render();
-            },
-          },
-          `Remove ${f.name || 'this Fylki'}`,
+            `Remove ${u.name || `this ${what}`}`,
+          ),
         ),
       ),
     );
@@ -698,6 +772,8 @@ function fylkiForm(f: Fylki) {
 function fylkiView() {
   fylkiIndex = Math.min(fylkiIndex, Math.max(0, data.fylki.length - 1));
   const f = data.fylki[fylkiIndex];
+  const k = f && flokkrIndex !== null ? f.flokkr?.[flokkrIndex] : undefined;
+  if (!k) flokkrIndex = null;
   return h(
     'section',
     {},
@@ -706,7 +782,7 @@ function fylkiView() {
       'div',
       { class: 'subtabs' },
       ...data.fylki.map((x, i) =>
-        h('button', { type: 'button', class: i === fylkiIndex ? 'on' : '', onclick: () => ((fylkiIndex = i), render()) }, x.name || 'New Fylki'),
+        h('button', { type: 'button', class: i === fylkiIndex ? 'on' : '', onclick: () => ((fylkiIndex = i), (flokkrIndex = null), render()) }, x.name || 'New Fylki'),
       ),
       fylkiIndex > 0 ? h('button', { type: 'button', class: 'link', onclick: () => (move(data.fylki, fylkiIndex, fylkiIndex - 1), fylkiIndex--, render()) }, '← Move earlier') : null,
       h(
@@ -717,6 +793,7 @@ function fylkiView() {
           onclick: () => {
             data.fylki.push({ name: '', description: '', flokkr: [], ls: { leaders: [], thegns: [], merkismadr: [], hirdmenn: [] }, lore: [], gallery: [] });
             fylkiIndex = data.fylki.length - 1;
+            flokkrIndex = null;
             changed();
             render();
           },
@@ -724,7 +801,15 @@ function fylkiView() {
         '+ Add Fylki',
       ),
     ),
-    f ? fylkiForm(f) : h('p', {}, 'No Fylki yet.'),
+    k
+      ? h(
+          'div',
+          { class: 'crumbs' },
+          h('button', { type: 'button', class: 'link', onclick: () => openFlokkr(null) }, `← Back to ${f.name || 'the Fylki'}`),
+          h('span', {}, `Flokkr ${k.name || 'New Flokkr'}`),
+        )
+      : null,
+    k ? unitForm(k, f) : f ? unitForm(f) : h('p', {}, 'No Fylki yet.'),
   );
 }
 
@@ -765,7 +850,7 @@ function missing(): HTMLElement | null {
   const bad =
     data.photos.some((p) => !p.alt?.trim() || !p.src) ||
     data.videos.some((v) => !v.url?.trim()) ||
-    data.fylki.some((f) => !f.name?.trim() || f.flokkr?.some((k) => !k.name?.trim()) || ROLES.some(([r]) => f.ls?.[r]?.some((m) => !m.name?.trim())) || f.gallery?.some((p) => !p.alt?.trim()));
+    units(data).some((u) => !u.name?.trim() || ROLES.some(([r]) => u.ls?.[r]?.some((m) => !m.name?.trim())) || u.gallery?.some((p) => !p.alt?.trim()));
   return bad ? document.body : null;
 }
 
@@ -826,6 +911,7 @@ function discard() {
   if (!confirm('Throw away everything you changed since the last save?')) return;
   data = Object.fromEntries(KEYS.map((k) => [k, JSON.parse(saved[k])])) as Data;
   uploads.clear();
+  flokkrIndex = null;
   render();
   changed();
 }

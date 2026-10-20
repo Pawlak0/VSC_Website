@@ -2,6 +2,7 @@
 import photos from './photos.json';
 import videoList from './videos.json';
 import fylkiList from './fylki.json';
+import { pageSlug } from '../lib/slug';
 
 export const DISCORD_URL = 'https://discord.gg/volsung-clan';
 
@@ -69,7 +70,7 @@ export type Member = {
   portrait?: string;
 };
 
-/** The LS (leadership) of a Fylki. Empty lists show as "To be announced". */
+/** The LS (leadership) of a Fylki or a Flokkr. Empty lists show as "To be announced". */
 export type FylkiLeadership = {
   leaders: Member[];
   thegns: Member[];
@@ -77,7 +78,11 @@ export type FylkiLeadership = {
   hirdmenn: Member[];
 };
 
-/** A smaller band under a Fylki. One with a description or saga gets its own page at /fylki/<fylki>/<flokkr>/. */
+/**
+ * A smaller band under a Fylki, with the same fields as a Fylki apart from its own Flokkr, so one that grows
+ * can become a Fylki with everything it has (the site panel does it in one click).
+ * One with a description, saga, LS or photos gets its own page at /fylki/<fylki>/<flokkr>/.
+ */
 export type Flokkr = {
   slug: string;
   /** Without the word Flokkr, e.g. Tryggr. */
@@ -86,9 +91,11 @@ export type Flokkr = {
   /** Path under /public, e.g. /img/fylki/tryggr.png. */
   banner?: string;
   description?: string;
+  ls: FylkiLeadership;
   /** Heading over the saga, e.g. "The Sworn Warband of Norðmǿrr Fylki". */
   loreTitle?: string;
   lore: string[];
+  gallery: GalleryImage[];
 };
 
 export type Fylki = {
@@ -107,29 +114,33 @@ export type Fylki = {
   lore: string[];
   /** Screenshots of this Fylki, like the main gallery: files in src/assets/gallery/. The section stays hidden while the list is empty. */
   gallery: GalleryImage[];
+  /** For a Fylki that grew out of a Flokkr: its old page, e.g. /fylki/nordmorr/tryggr/, which now forwards here (astro.config.mjs). */
+  movedFrom?: string;
 };
 
-/** What each LS role means, shown on every Fylki page. */
-export const lsRoles: { key: keyof FylkiLeadership; name: string; text: string }[] = [
-  { key: 'leaders', name: 'Leadership', text: 'The leaders of the Fylki' },
-  { key: 'thegns', name: 'Thegns', text: 'Officers of the Fylki' },
+/** What each LS role means, shown on every Fylki and Flokkr page. */
+export const lsRoles = (unit: 'Fylki' | 'Flokkr'): { key: keyof FylkiLeadership; name: string; text: string }[] => [
+  { key: 'leaders', name: 'Leadership', text: `The leaders of the ${unit}` },
+  { key: 'thegns', name: 'Thegns', text: `Officers of the ${unit}` },
   { key: 'merkismadr', name: 'Merkismaðr', text: 'Bannerman, the trusted sigil holder' },
-  { key: 'hirdmenn', name: 'Hirðmaðr', text: 'Bodyguard of the Fylki leader' },
+  { key: 'hirdmenn', name: 'Hirðmaðr', text: `Bodyguard of the ${unit} leader` },
 ];
 
-/** The page address of a Fylki: Norðmǿrr becomes nordmorr. */
-const slugify = (s: string) =>
-  s.toLowerCase().replace(/ð/g, 'd').replace(/þ/g, 'th').replace(/æ/g, 'ae').replace(/[øǿ]/g, 'o')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
 const named = (list?: Member[]) => (list ?? []).filter((m) => m?.name);
+const leadership = (ls?: Partial<FylkiLeadership>): FylkiLeadership => ({
+  leaders: named(ls?.leaders),
+  thegns: named(ls?.thegns),
+  merkismadr: named(ls?.merkismadr),
+  hirdmenn: named(ls?.hirdmenn),
+});
+const photosOf = (list?: GalleryImage[]) => (list ?? []).filter((g) => g?.src);
 
 // Kept in fylki.json, which the site panel at /admin/ edits. A field the panel leaves out counts as empty,
 // and a row added without a name or picture is skipped.
 export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
   .filter((f) => f.name)
   .map((f) => ({
-    slug: slugify(f.slug || f.name!),
+    slug: pageSlug(f.slug || f.name!),
     name: f.name!,
     subtitle: f.subtitle || undefined,
     banner: f.banner || undefined,
@@ -139,27 +150,26 @@ export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
       .map((k) => (typeof k === 'string' ? { name: k } : k))
       .filter((k) => k?.name)
       .map((k) => ({
-        slug: slugify(k.slug || k.name!),
+        slug: pageSlug(k.slug || k.name!),
         name: k.name!,
         subtitle: k.subtitle || undefined,
         banner: k.banner || undefined,
         description: k.description || undefined,
+        ls: leadership(k.ls),
         loreTitle: k.loreTitle || undefined,
         lore: (k.lore ?? []).filter(Boolean),
+        gallery: photosOf(k.gallery),
       })),
-    ls: {
-      leaders: named(f.ls?.leaders),
-      thegns: named(f.ls?.thegns),
-      merkismadr: named(f.ls?.merkismadr),
-      hirdmenn: named(f.ls?.hirdmenn),
-    },
+    ls: leadership(f.ls),
     loreTitle: f.loreTitle || undefined,
     lore: (f.lore ?? []).filter(Boolean),
-    gallery: (f.gallery ?? []).filter((g) => g?.src),
+    gallery: photosOf(f.gallery),
+    movedFrom: f.movedFrom || undefined,
   }));
 
-/** Whether a Flokkr has enough written about it for a page of its own. */
-export const hasPage = (k: Flokkr) => Boolean(k.description || k.lore.length);
+/** Whether a Flokkr has enough about it for a page of its own. */
+export const hasPage = (k: Flokkr) =>
+  Boolean(k.description || k.lore.length || k.gallery.length || Object.values(k.ls).some((list) => list.length));
 
 export type Rank = {
   name: string;

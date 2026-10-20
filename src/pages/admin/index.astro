@@ -162,12 +162,18 @@ const tokenPage = 'https://github.com/settings/tokens/new?scopes=public_repo&des
   .banner-pic { width: 150px; aspect-ratio: 3 / 4.4; background: var(--pitch); border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; }
   .banner-pic img { width: 100%; height: 100%; object-fit: contain; }
   .banner-pic.empty span { font: 700 12px var(--f-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-  .flokkr-list { display: grid; gap: 14px; justify-items: start; }
-  .flokkr { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 16px; background: var(--field); border: 1px solid var(--line); padding: 16px; width: 100%; }
-  .flokkr .fields { padding: 0; }
+  .flokkr-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; align-items: start; }
+  .flokkr-list > .btn { justify-self: start; align-self: center; }
+  .flokkr-card { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 14px; background: var(--field); border: 1px solid var(--line); padding: 12px; }
+  .flokkr-card .banner-pic { width: 72px; }
+  .flokkr-card .fields { padding: 0; gap: 8px; justify-items: start; }
+  .flokkr-card b { font: 700 16px var(--f-display); letter-spacing: 0.06em; }
+  .flokkr-card small { font-size: 12px; color: var(--muted); }
+  .crumbs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin: -8px 0 20px; }
+  .crumbs span { font: 700 14px var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
   .ls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
   @media (max-width: 1100px) { .ls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 640px) { .ls, .panel-box.basics, .flokkr { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) { .ls, .panel-box.basics { grid-template-columns: 1fr; } }
   .role { display: grid; gap: 10px; align-content: start; justify-items: start; background: var(--field); border: 1px solid var(--line); padding: 12px; }
   .role h4 { font-size: 16px; letter-spacing: 0.06em; }
   .member { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; width: 100%; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
@@ -175,7 +181,9 @@ const tokenPage = 'https://github.com/settings/tokens/new?scopes=public_repo&des
   .member .tools, .member > .link { grid-column: 1 / -1; }
   .portrait { width: 48px; height: 64px; padding: 0; background: var(--pitch); border: 1px dashed var(--line); color: var(--muted); font-size: 20px; cursor: pointer; overflow: hidden; }
   .portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .danger { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .danger { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: start; justify-content: space-between; }
+  .danger .promote { display: grid; gap: 6px; justify-items: start; max-width: 46ch; }
+  .danger .promote small { font-size: 12px; color: var(--muted); }
   .danger .remove { background: none; border: 1px solid #6b2f25; padding: 8px 14px; cursor: pointer; }
 
   dialog.picker { width: min(1100px, 92vw); max-height: 86vh; background: var(--pitch); color: var(--ink); border: 1px solid var(--line); padding: 20px; }
