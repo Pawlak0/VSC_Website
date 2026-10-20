@@ -925,7 +925,7 @@ function bannerSettings() {
   );
 }
 
-/** The clan's own banner, over the Fylki on the home page and on the map: its picture and its shape, folded away. */
+/** The clan's own banner, over the Fylki on the Jarldom page and on the map: its picture and its shape, folded away. */
 function clanBannerForm() {
   const box = h('div', { class: 'panel-box basics clan-banner' });
   const redraw = () => {
@@ -935,7 +935,7 @@ function clanBannerForm() {
       h(
         'div',
         { class: 'fields' },
-        h('small', {}, 'Over the Fylki on the home page and on the map. Without a picture the site draws it in black and white.'),
+        h('small', {}, 'Over the Fylki on the Jarldom page and on the map. Without a picture the site draws it in black and white.'),
         h('div', { class: 'field' }, h('span', { class: 'label' }, 'Shape of the banner'), shapePicker(clan, 'shape', { ...clan, main: true }, redraw)),
       ),
     );
@@ -952,7 +952,7 @@ function fylkiView() {
   return h(
     'section',
     {},
-    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Fylki'), h('p', {}, 'Each Fylki has its own page. The order here is the order on the home page and in the menu.')), bannerSettings()),
+    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Fylki'), h('p', {}, 'Each Fylki has its own page. The order here is the order on the Jarldom page and in the menu.')), bannerSettings()),
     flokkrIndex === null ? clanBannerForm() : null,
     h(
       'div',
@@ -1064,7 +1064,7 @@ function newsView() {
         'div',
         {},
         h('h2', {}, 'News'),
-        h('p', {}, 'Posts on the News page, the newest first, each with a page of its own. The three newest also show on the home page. While News is off, none of it is on the site.'),
+        h('p', {}, 'Posts on the News page, the newest first, each with a page of its own. While News is off, none of it is on the site.'),
       ),
       h('div', { class: 'add switch' }, toggle(news, 'on', 'On the site', redraw), h('button', { type: 'button', class: 'btn btn-gold', onclick: add }, 'Add post')),
     ),
@@ -1348,7 +1348,7 @@ function mapView() {
             'div',
             {},
             h('h2', {}, 'Map of the Jarldom'),
-            h('p', {}, 'A page with the banners of the clan, its Fylki and Flokkr on their lands; a click on a banner opens its page. While it is on, the menu at the top and the home page link to it.'),
+            h('p', {}, 'A page with the banners of the clan, its Fylki and Flokkr on their lands; a click on a banner opens its page. While it is on, the menu at the top and the Jarldom page link to it.'),
           ),
           h('div', { class: 'add switch' }, toggle(map, 'on', 'On the site')),
         ),

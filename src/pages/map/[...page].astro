@@ -17,7 +17,7 @@ const picture = await mapPicture();
 const srcset = picture?.copies.length ? [...picture.copies.map((c) => `${c.src} ${c.width}w`), `${jarldomMap.picture} ${picture.width}w`].join(', ') : undefined;
 
 const pins: Pin[] = [
-  ...(jarldomMap.clanAt ? [{ name: 'The Völsung Clan', main: true, banner: bannerLook.clan.banner, shape: bannerLook.clan.shape, href: '/#jarldom', size: 'big' as const, at: jarldomMap.clanAt, nameAbove: jarldomMap.clanNameAbove }] : []),
+  ...(jarldomMap.clanAt ? [{ name: 'The Völsung Clan', main: true, banner: bannerLook.clan.banner, shape: bannerLook.clan.shape, href: '/jarldom/', size: 'big' as const, at: jarldomMap.clanAt, nameAbove: jarldomMap.clanNameAbove }] : []),
   ...fylki.flatMap((f) => [
     ...(f.mapAt ? [{ name: f.name, banner: f.banner, shape: f.shape, href: `/fylki/${f.slug}/`, size: 'normal' as const, at: f.mapAt, nameAbove: f.mapNameAbove }] : []),
     // A Flokkr without a page of its own leads to its Fylki.
@@ -32,7 +32,7 @@ const pins: Pin[] = [
 <Base title="Map of the Jarldom" description="The lands of The Völsung Clan in Mount & Blade II: Bannerlord, with the banner of each Fylki on its land.">
   <section>
     <div class="wrap">
-      <BackLink href="/#jarldom" label="Back to the Jarldom" />
+      <BackLink href="/jarldom/" label="Back to the Jarldom" />
       <div class="head" data-stagger>
         <p class="eyebrow">The Jarldom</p>
         <h1>Map of the Jarldom</h1>
@@ -96,7 +96,7 @@ const pins: Pin[] = [
         )
       }
       <div class="links" data-reveal>
-        <a class="textlink" href="/#jarldom">Back to the Jarldom</a>
+        <a class="textlink" href="/jarldom/">Back to the Jarldom</a>
         {jarldomMap.picture && <a class="textlink" href={jarldomMap.picture} target="_blank" rel="noopener">Open the full map</a>}
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
       </div>

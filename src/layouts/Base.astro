@@ -15,24 +15,24 @@ interface Props {
 
 const {
   title,
-  description = "A Viking clan in Mount & Blade II: Bannerlord. We fight in the game's biggest events and open-world mods like Persistent Bannerlord. EU-based and newcomer friendly.",
+  description = "VSC, The Völsung Clan: a Viking clan in Mount & Blade II: Bannerlord. We fight in the game's biggest events and open-world mods like Persistent Bannerlord. EU-based and newcomer friendly.",
   image = '/img/og.jpg',
   noindex = false,
   colors,
 } = Astro.props;
-// The home page title carries the words people search for; other pages lead with their own name.
-const fullTitle = title ? `${title} · The Völsung Clan` : 'The Völsung Clan · Viking clan in Mount & Blade II: Bannerlord';
+// The home page title carries the words people search for, the clan's short name VSC too; other pages lead with their own name.
+const fullTitle = title ? `${title} · The Völsung Clan` : 'The Völsung Clan (VSC) · Viking clan in Mount & Blade II: Bannerlord';
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 const ogImage = new URL(image, Astro.site).toString();
 const isHome = Astro.url.pathname === '/';
-// Section links lead to the home page; Media and each Fylki are pages of their own, and so are News and the map
-// once they are turned on in the site panel.
+// Events lead to the home page; the Jarldom, Ranks, Media and each Fylki are pages of their own, and so are News and
+// the map once they are turned on in the site panel.
 type NavLink = { href: string; label: string; sub?: NavLink[] };
 const nav: NavLink[] = [
   { href: '/#events', label: 'Events' },
-  { href: '/#jarldom', label: 'Jarldom', sub: fylki.map((f) => ({ href: `/fylki/${f.slug}/`, label: f.name })) },
+  { href: '/jarldom/', label: 'Jarldom', sub: fylki.map((f) => ({ href: `/fylki/${f.slug}/`, label: f.name })) },
   ...(jarldomMap.on ? [{ href: '/map/', label: 'Map' }] : []),
-  { href: '/#ranks', label: 'Ranks' },
+  { href: '/ranks/', label: 'Ranks' },
   { href: '/media/', label: 'Media' },
   ...(news.on ? [{ href: '/news/', label: 'News' }] : []),
 ];
@@ -65,7 +65,9 @@ const clanData = {
     <meta name="description" content={description} />
     {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
     <link rel="sitemap" href="/sitemap.xml" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <!-- Google shows an icon in its results only when it is a multiple of 48px. -->
+    <link rel="icon" type="image/png" sizes="144x144" href="/favicon-144.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="The Völsung Clan" />
@@ -121,7 +123,7 @@ const clanData = {
 
     <footer>
       <div class="wrap">
-        <span><span class="rune">ᚠ</span> The Völsung Clan · Mount &amp; Blade II: Bannerlord</span>
+        <span><span class="rune">ᚠ</span> The Völsung Clan (VSC) · Mount &amp; Blade II: Bannerlord</span>
         <span class="links">
           <a href={DISCORD_URL} target="_blank" rel="noopener">discord.gg/volsung-clan</a>
           <a href="/admin/" rel="nofollow">Admin panel</a>

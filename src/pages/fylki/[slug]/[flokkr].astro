@@ -67,7 +67,7 @@ const others = f.flokkr.filter((o) => o.slug !== k.slug && hasPage(o));
       <div class="links">
         <a class="textlink" href={`/fylki/${f.slug}/`}>{f.name} Fylki</a>
         {others.map((o) => <a class="textlink" href={`/fylki/${f.slug}/${o.slug}/`}>{o.name}</a>)}
-        <a class="textlink" href="/#jarldom">The whole Jarldom</a>
+        <a class="textlink" href="/jarldom/">The whole Jarldom</a>
       </div>
       <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
     </div>
