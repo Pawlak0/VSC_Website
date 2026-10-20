@@ -27,8 +27,8 @@
           "Eventually, one expedition would change the warband's future."
         ],
         "mapAt": {
-          "x": 41.9,
-          "y": 15.1
+          "x": 41.3,
+          "y": 17.1
         },
         "colors": {
           "accent": "#dca22a",
@@ -90,13 +90,14 @@
     ],
     "gallery": [],
     "mapAt": {
-      "x": 36.4,
-      "y": 17
+      "x": 37.8,
+      "y": 15.1
     },
     "colors": {
       "accent": "#e8b24a"
     },
-    "shape": "torn"
+    "shape": "torn",
+    "mapNameAbove": true
   },
   {
     "slug": "kattegat",
@@ -134,8 +135,8 @@
     "lore": [],
     "gallery": [],
     "mapAt": {
-      "x": 47.3,
-      "y": 67.5
+      "x": 46.8,
+      "y": 68.5
     },
     "colors": {
       "accent": "#5cb4c0",
@@ -184,8 +185,8 @@
     ],
     "gallery": [],
     "mapAt": {
-      "x": 51.5,
-      "y": 8.6
+      "x": 50,
+      "y": 8.8
     },
     "colors": {
       "accent": "#dc4c3f",
