@@ -5,16 +5,19 @@ import { DISCORD_URL, fylki, jarldomMap, news } from '../data/clan';
 interface Props {
   title?: string;
   description?: string;
+  /** The picture shown when the page is shared, e.g. on Discord. */
+  image?: string;
 }
 
 const {
   title,
   description = "A Viking clan in Mount & Blade II: Bannerlord. We fight in the game's biggest events and open-world mods like Persistent Bannerlord. EU-based and newcomer friendly.",
+  image = '/img/og.jpg',
 } = Astro.props;
 // The home page title carries the words people search for; other pages lead with their own name.
 const fullTitle = title ? `${title} · The Völsung Clan` : 'The Völsung Clan · Viking clan in Mount & Blade II: Bannerlord';
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
-const ogImage = new URL('/img/og.jpg', Astro.site).toString();
+const ogImage = new URL(image, Astro.site).toString();
 const isHome = Astro.url.pathname === '/';
 // Section links lead to the home page; Media and each Fylki are pages of their own, and so are News and the map
 // once they are turned on in the site panel.

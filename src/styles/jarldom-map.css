@@ -1,0 +1,58 @@
+/* The map of the Jarldom, on the /map/ page and in the site panel, which shows it the same way while banners are dragged.
+   Everything on it is sized by the map's width, so it sits on the same spot of the land on a phone as on a big screen. */
+.jarldom { position: relative; container-type: inline-size; border: 1px solid var(--line); }
+.jarldom > img { display: block; width: 100%; height: auto; }
+
+/* The banner's middle is the point; the name hangs under it on a ribbon. */
+.jarldom .pennant { position: absolute; display: block; transform: translate(-50%, -50%); --pennant: clamp(24px, 6cqw, 84px); }
+.jarldom .pennant.small { --pennant: clamp(16px, 4cqw, 56px); }
+.jarldom .pennant.big { --pennant: clamp(30px, 8cqw, 112px); }
+.jarldom .pennant .banner { width: var(--pennant); box-shadow: 0 6px 18px rgb(0 0 0 / 0.55); }
+.jarldom .pennant b,
+.jarldom a.pennant b,
+.jarldom a.pennant:hover b {
+  position: absolute;
+  top: calc(100% + 0.35em);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: clamp(10px, 1.3cqw, 16px);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: #2a2016;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.55));
+}
+.jarldom .pennant.small b { font-size: clamp(9px, 1.05cqw, 13px); }
+.jarldom .pennant.big b { font-size: clamp(11px, 1.6cqw, 20px); }
+.jarldom .pennant b span {
+  display: block;
+  padding: 0.3em 1.5em;
+  background: linear-gradient(#f2e9d3, #d6c49b);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 0.8em) 50%, 100% 100%, 0 100%, 0.8em 50%);
+}
+.jarldom a.pennant:hover b span { background: linear-gradient(#fff7e2, #e8d6a8); }
+.jarldom.nameless .pennant b { display: none; }
+
+/* Names of seas and lands, written on the map in the site's lettering. */
+.jarldom .map-label {
+  position: absolute;
+  transform: translate(-50%, -50%) rotate(var(--tilt, 0deg));
+  white-space: nowrap;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: clamp(9px, 2.2cqw, 34px);
+  letter-spacing: 0.2em;
+  line-height: 1;
+  color: rgb(43 33 22 / 0.85);
+  text-shadow: 0 0 6px rgb(242 233 211 / 0.35);
+  pointer-events: none;
+}
+.jarldom .map-label.small { font-size: clamp(8px, 1.4cqw, 22px); letter-spacing: 0.14em; }
+.jarldom .map-label.big { font-size: clamp(11px, 3.4cqw, 52px); letter-spacing: 0.28em; }
+.jarldom .map-label.light { color: rgb(236 230 214 / 0.9); text-shadow: 0 1px 4px rgb(0 0 0 / 0.65); }
+
+/* On a narrow map the names would cover the land. */
+@container (max-width: 560px) {
+  .jarldom .pennant b, .jarldom .map-label.small { display: none; }
+}

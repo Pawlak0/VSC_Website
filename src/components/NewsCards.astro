@@ -1,0 +1,39 @@
+---
+import type { Post } from '../data/clan';
+import { newsDate, postPicture } from '../lib/news';
+
+interface Props {
+  posts: Post[];
+}
+
+const cards = await Promise.all(Astro.props.posts.map(async (p) => ({ ...p, tile: await postPicture(p.picture, 800) })));
+---
+
+<div class="news-cards">
+  {
+    cards.map((p) => (
+      <a class="news-card" href={`/news/${p.id}/`} data-reveal>
+        {p.tile ? <img src={p.tile} alt="" loading="lazy" /> : <span class="blank" aria-hidden="true"><i class="emblem" /></span>}
+        <div class="txt">
+          {p.date && <time datetime={p.date}>{newsDate(p.date)}</time>}
+          <h3>{p.title}</h3>
+          {p.text[0] && <p>{p.text[0]}</p>}
+        </div>
+      </a>
+    ))
+  }
+</div>
+
+<style>
+  .news-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 20px; }
+  .news-card { display: grid; grid-template-rows: auto 1fr; background: var(--pitch); border: 1px solid var(--line); color: inherit; text-decoration: none; transition: border-color 0.2s, transform 0.2s; }
+  .news-card:hover { border-color: var(--gold); transform: translateY(-3px); }
+  .news-card img, .news-card .blank { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; border-bottom: 1px solid var(--line); }
+  .news-card .blank { display: grid; place-items: center; background: var(--field); }
+  .news-card .blank .emblem { width: 34px; opacity: 0.5; }
+  .news-card .txt { display: grid; gap: 8px; align-content: start; padding: 18px 20px 22px; }
+  .news-card time { font-family: var(--f-display); font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+  .news-card h3 { font-size: 20px; }
+  .news-card:hover h3 { color: var(--gold); }
+  .news-card p { color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+</style>

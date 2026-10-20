@@ -2,6 +2,7 @@
 // The editors' panel. The page itself is static; signing in, loading and saving all happen in the browser
 // (src/admin/panel.ts), with the editor's own GitHub token.
 import '../../styles/global.css';
+import '../../styles/jarldom-map.css';
 
 const tokenPage = 'https://github.com/settings/tokens/new?scopes=public_repo&description=V%C3%B6lsung%20site%20panel';
 ---
@@ -22,7 +23,7 @@ const tokenPage = 'https://github.com/settings/tokens/new?scopes=public_repo&des
     <section id="signin" hidden>
       <a class="logo" href="/">Völsung</a>
       <h1>Site panel</h1>
-      <p>Edit the photos, videos, Fylki and other pages of volsungclan.com. Saving writes the change to the site's GitHub repository, and the site updates by itself.</p>
+      <p>Edit the photos, videos, Fylki, news and map of volsungclan.com. Saving writes the change to the site's GitHub repository, and the site updates by itself.</p>
       <ol>
         <li>You need a GitHub account with access to the site's repository. Pawlak adds you on GitHub under the repository's Settings, Collaborators.</li>
         <li><a href={tokenPage} target="_blank" rel="noopener">Create a token on GitHub</a>. Leave <b>public_repo</b> ticked, pick when it expires, and press Generate token.</li>
@@ -43,7 +44,8 @@ const tokenPage = 'https://github.com/settings/tokens/new?scopes=public_repo&des
           <button type="button" data-tab="photos">Photos</button>
           <button type="button" data-tab="videos">Videos</button>
           <button type="button" data-tab="fylki">Fylki</button>
-          <button type="button" data-tab="pages">Pages</button>
+          <button type="button" data-tab="news">News</button>
+          <button type="button" data-tab="map">Map</button>
         </nav>
         <div id="cols" class="cols" role="group" aria-label="Cards per row">
           <span>Per row</span>
@@ -187,28 +189,48 @@ const tokenPage = 'https://github.com/settings/tokens/new?scopes=public_repo&des
   .danger .promote small { font-size: 12px; color: var(--muted); }
   .danger .remove { background: none; border: 1px solid #6b2f25; padding: 8px 14px; cursor: pointer; }
 
-  .page-box { display: grid; gap: 16px; margin-top: 24px; padding: 20px; background: var(--field); border: 1px solid var(--line); }
+  .admin .add.switch { min-width: 0; align-items: center; gap: 16px; }
+  .admin .add.switch .toggle { padding-bottom: 0; }
+  .page-box { display: grid; gap: 16px; margin: 16px 0 24px; padding: 20px; background: var(--field); border: 1px solid var(--line); }
   .page-box .bar { margin-bottom: 0; }
   .page-box .bar h3 { font-size: 24px; }
   .page-box .bar .meta { margin: 4px 0 0; }
-  .page-box .add { min-width: 0; align-items: center; gap: 16px; }
-  .page-box .add .toggle { padding-bottom: 0; }
+  .page-box .tools .toggle { padding: 0 0 0 12px; }
   .posts { display: grid; gap: 12px; }
-  .post { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; background: var(--pitch); border: 1px solid var(--line); padding: 12px; }
+  .post { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; background: var(--field); border: 1px solid var(--line); padding: 12px; }
   .post .fields { padding: 0; }
+  .post .tools .textlink { margin-left: auto; font-size: 14px; }
   .post-pic { display: grid; gap: 8px; align-content: start; }
   .post-pic .pic { cursor: default; display: grid; place-items: center; }
   .post-pic .pic.empty span { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
   @media (max-width: 640px) { .post { grid-template-columns: 1fr; } }
-  /* Banners on the map are sized by the map's width, as on the site's map page. */
-  .map-stage { position: relative; container-type: inline-size; border: 1px solid var(--line); user-select: none; }
-  .map-stage > img { display: block; width: 100%; height: auto; }
-  .map-pin { position: absolute; transform: translate(-50%, -50%); cursor: grab; touch-action: none; }
-  .map-pin:active { cursor: grabbing; }
-  .map-pin .banner-pic { display: block; width: clamp(24px, 6cqw, 84px); box-shadow: 0 6px 18px rgb(0 0 0 / 0.55); }
-  .map-pin .banner-pic img { object-fit: cover; }
-  .map-pin b { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; font: 400 12px var(--f-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); background: rgb(13 13 12 / 0.78); padding: 2px 8px; }
-  .map-edit { display: grid; gap: 12px; }
+
+  /* The map as on the site (jarldom-map.css), with the list of banners beside it. */
+  .map-edit { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: start; }
+  .map-stage { user-select: none; }
+  .map-stage .map-pin, .map-stage .map-label { cursor: grab; touch-action: none; pointer-events: auto; }
+  .map-stage .map-pin:active, .map-stage .map-label:active { cursor: grabbing; }
+  .pin-list { display: grid; gap: 4px; max-height: 80vh; overflow: auto; padding: 12px; background: var(--field); border: 1px solid var(--line); }
+  .pin-list h4 { font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .pin-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 4px 0; }
+  .pin-row.sub { padding-left: 18px; grid-template-columns: 22px minmax(0, 1fr) auto; }
+  .pin-row .banner, .pin-row .banner.main { width: 100%; }
+  .pin-row > span:not(.banner) { font: 700 14px var(--f-display); letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pin-row button { background: none; border: 1px solid var(--line); color: var(--ink); padding: 3px 9px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .pin-row button:hover { border-color: var(--gold); color: var(--gold); }
+  .markers { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 12px; }
+  .marker-card { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 14px; padding: 12px; background: var(--pitch); border: 1px solid var(--line); }
+  .marker-card .banner-pic { width: 90px; }
+  .marker-card .banner-box small { display: none; }
+  .marker-card .fields { padding: 0; }
+  .label-row { display: grid; grid-template-columns: minmax(160px, 2fr) minmax(100px, 1fr) minmax(150px, 1fr) minmax(140px, 1fr) auto; gap: 12px; align-items: end; padding: 12px; background: var(--pitch); border: 1px solid var(--line); }
+  .admin .label-row .tilt input { accent-color: var(--gold); width: 100%; height: 38px; padding: 0; border: 0; background: none; }
+  .label-row .tools { padding-bottom: 8px; }
+  @media (max-width: 900px) {
+    .map-edit { grid-template-columns: 1fr; }
+    .pin-list { max-height: none; }
+    .label-row { grid-template-columns: 1fr 1fr; }
+  }
 
   dialog.picker { width: min(1100px, 92vw); max-height: 86vh; background: var(--pitch); color: var(--ink); border: 1px solid var(--line); padding: 20px; }
   dialog.picker::backdrop { background: rgba(0, 0, 0, 0.7); }
@@ -231,7 +253,10 @@ const tokenPage = 'https://github.com/settings/tokens/new?scopes=public_repo&des
   }
   @media (max-width: 640px) {
     .top { flex-wrap: wrap; gap: 8px 16px; padding: 8px 16px; }
-    .who { margin-left: 0; }
+    /* Five tabs do not fit side by side on a phone. */
+    #tabs { order: 3; width: 100%; overflow-x: auto; scrollbar-width: none; }
+    #tabs button { padding: 8px 7px; flex: none; font-size: 13px; letter-spacing: 0.08em; }
+    .who { margin-left: auto; }
     #content { padding: 20px 16px; }
     .savebar { padding: 10px 16px; }
     .picks { grid-template-columns: repeat(3, minmax(0, 1fr)); }
