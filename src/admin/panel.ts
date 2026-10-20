@@ -4,6 +4,7 @@ import { GitHub, GitHubError, OWNER, REPO, type Change } from './github';
 import { shrink, slugify } from './images';
 import { videoId } from '../lib/videos';
 import { pageSlug } from '../lib/slug';
+import { SHAPES, cutOf } from '../lib/banner-shapes';
 
 type Size = 'normal' | 'wide' | 'big';
 type Photo = { src: string; alt: string; size?: Size; home?: boolean };
@@ -26,8 +27,12 @@ type Flokkr = {
   gallery?: Photo[];
   /** Where its banner stands on the map of the Jarldom. */
   mapAt?: Spot;
+  /** Its name above its banner on the map; under it when left out. */
+  mapNameAbove?: boolean;
   /** Colours from its banner for its own page, as BannerColors in src/data/clan.ts. */
   colors?: { accent: string; glow?: string };
+  /** How the bottom of its banner is cut, an id from src/lib/banner-shapes.ts; straight when left out. */
+  shape?: string;
 };
 type Fylki = Flokkr & {
   flokkr?: Flokkr[];
@@ -36,7 +41,7 @@ type Fylki = Flokkr & {
 };
 type Post = { title: string; date: string; text?: string[]; picture?: string };
 /** Any other banner on the map: an ally, a castle, a battlefield. */
-type Marker = { name: string; banner?: string; link?: string; size?: PinSize; at: Spot };
+type Marker = { name: string; banner?: string; link?: string; size?: PinSize; at: Spot; nameAbove?: boolean };
 /** A name written on the map, such as a sea or a land. */
 type MapLabel = { text: string; size?: PinSize; tilt?: number; light?: boolean; at: Spot };
 /** Pages that stay off the site until they are turned on. */
@@ -49,14 +54,15 @@ type Pages = {
     /** false hides the names under the banners. */
     names?: boolean;
     clanAt?: Spot;
+    clanNameAbove?: boolean;
     markers?: Marker[];
     labels?: MapLabel[];
   };
 };
-/** Where a banner's name stands on the site. */
-type NamePlace = 'under' | 'above';
-/** Settings for the whole site. */
-type Site = { banners?: { fylkiNames?: NamePlace; flokkrNames?: NamePlace } };
+/** The clan's own banner: its picture (drawn in its colours without one) and its shape. */
+type ClanBanner = { banner?: string; shape?: string };
+/** Settings for the whole site: the clan's own banner, and poles over every banner. */
+type Site = { banners?: { clan?: ClanBanner; poles?: boolean } };
 type Data = { photos: Photo[]; videos: Video[]; fylki: Fylki[]; pages: Pages; site: Site };
 type Key = keyof Data;
 type Tab = 'photos' | 'videos' | 'fylki' | 'news' | 'map';
@@ -69,7 +75,7 @@ const FILES: Record<Key, string> = {
   pages: 'src/data/pages.json',
   site: 'src/data/site.json',
 };
-const NAMES: Record<Key, string> = { photos: 'photos', videos: 'videos', fylki: 'Fylki', pages: 'pages', site: 'banner names' };
+const NAMES: Record<Key, string> = { photos: 'photos', videos: 'videos', fylki: 'Fylki', pages: 'pages', site: 'banner settings' };
 const KEYS = Object.keys(FILES) as Key[];
 const ROLES: [Role, string][] = [
   ['leaders', 'Leadership'],
@@ -357,6 +363,7 @@ function pictures(d: Data): Set<string> {
   d.pages?.news?.posts?.forEach((p) => add(p.picture));
   add(d.pages?.map?.picture);
   d.pages?.map?.markers?.forEach((m) => add(m.banner));
+  add(d.site?.banners?.clan?.banner);
   return out;
 }
 
@@ -497,7 +504,7 @@ function videosView() {
 
 // ---------- Fylki ----------
 
-function bannerBox(obj: { banner?: string; name: string }, redraw: () => void, label = 'Banner') {
+function bannerBox(obj: { banner?: string; name?: string }, redraw: () => void, label = 'Banner', fileName = `${obj.name || 'banner'}-banner`) {
   const img = h('img', { alt: '' });
   showImage(img, obj.banner);
   return h(
@@ -514,7 +521,7 @@ function bannerBox(obj: { banner?: string; name: string }, redraw: () => void, l
           onclick: () =>
             pickFiles(false, async ([file]) => {
               if (!file) return;
-              obj.banner = await addPicture(file, 'banner', `${obj.name || 'banner'}-banner`);
+              obj.banner = await addPicture(file, 'banner', fileName);
               changed();
               redraw();
             }),
@@ -659,7 +666,9 @@ function promote(k: Flokkr, parent: Fylki) {
     lore: k.lore,
     gallery: k.gallery,
     mapAt: k.mapAt,
+    mapNameAbove: k.mapNameAbove,
     colors: k.colors,
+    shape: k.shape,
     movedFrom: hasPage(k) ? `/fylki/${slugOf(parent)}/${slug}/` : undefined,
   });
   fylkiIndex = data.fylki.length - 1;
@@ -700,7 +709,6 @@ function pickFromPhotos(onPick: (p: Photo[]) => void) {
   dialog.showModal();
 }
 
-/** The form of a Fylki, or of one of its Flokkr when `parent` is given: both have the same fields. */
 /** The site's gold, where a new colour starts. */
 const GOLD = '#c49c55';
 
@@ -738,6 +746,38 @@ function colorPick(u: Flokkr, key: 'accent' | 'glow', label: string, redraw: () 
   );
 }
 
+/** The cut a banner has now; one the panel no longer knows counts as straight. */
+const shapeNow = (v?: string) => (SHAPES.some((s) => s.cut && s.id === v) ? v! : 'straight');
+
+/** Every cut of a banner's bottom, each drawn as a small banner with `look`'s picture; a click picks it. */
+function shapePicker(obj: Record<string, any>, key: string, look: { banner?: string; main?: boolean }, redraw: () => void) {
+  const now = shapeNow(obj[key]);
+  return h(
+    'div',
+    { class: 'shapes' },
+    ...SHAPES.map((s) =>
+      h(
+        'button',
+        {
+          type: 'button',
+          class: `shape${s.id === now ? ' on' : ''}`,
+          title: s.label,
+          'aria-pressed': String(s.id === now),
+          onclick: () => {
+            if (s.cut) obj[key] = s.id;
+            else delete obj[key];
+            changed();
+            redraw();
+          },
+        },
+        bannerEl({ ...look, shape: s.id }),
+        h('small', {}, s.label),
+      ),
+    ),
+  );
+}
+
+/** The form of a Fylki, or of one of its Flokkr when `parent` is given: both have the same fields. */
 function unitForm(u: Fylki, parent?: Fylki) {
   const what = parent ? 'Flokkr' : 'Fylki';
   const form = h('div', { class: 'fylki-form' });
@@ -776,6 +816,13 @@ function unitForm(u: Fylki, parent?: Fylki) {
                 {},
                 `Take them from the banner. The accent takes the place of the gold on the ${what} page, and the glow lights the banner and tints the page. Without them the page has the site's gold.`,
               ),
+            ),
+            h(
+              'div',
+              { class: 'field' },
+              h('span', { class: 'label' }, 'Shape of the banner'),
+              shapePicker(u, 'shape', u, redraw),
+              h('small', {}, 'How the bottom of the banner is cut, everywhere on the site. The picture is cut with it, so a shape with deep cuts suits a banner with nothing important at the bottom.'),
             ),
           ),
         ),
@@ -864,20 +911,37 @@ function unitForm(u: Fylki, parent?: Fylki) {
   return form;
 }
 
-/** Whether the names stand under or above the banners, for all Fylki and all Flokkr at once. */
-function namePlaces() {
+/** Poles over the banners in the panel too, as on the site (class on <body>, global.css). */
+const showPoles = () => document.body.classList.toggle('banner-poles', data.site.banners?.poles === true);
+
+/** For every banner at once: poles over them. */
+function bannerSettings() {
   const banners = (data.site.banners ??= {});
-  const places: [string, string][] = [
-    ['under', 'Under the banner'],
-    ['above', 'Above the banner'],
-  ];
   return h(
     'div',
-    { class: 'name-places' },
-    field('Fylki names', select(banners, 'fylkiNames', places, 'under')),
-    field('Flokkr names', select(banners, 'flokkrNames', places, 'under')),
-    h('small', {}, 'For every banner on the home page and the Fylki and Flokkr pages. The clan banner follows the Fylki.'),
+    { class: 'banner-settings' },
+    toggle(banners, 'poles', 'Banners on poles', showPoles),
+    h('small', {}, 'Poles go over every banner on the site. Each banner picks its own shape in its form.'),
   );
+}
+
+/** The clan's own banner, over the Fylki on the home page and on the map: its picture and its shape, folded away. */
+function clanBannerForm() {
+  const box = h('div', { class: 'panel-box basics clan-banner' });
+  const redraw = () => {
+    const clan = ((data.site.banners ??= {}).clan ??= {});
+    box.replaceChildren(
+      bannerBox(clan, redraw, 'Drawn', 'volsung-clan-banner'),
+      h(
+        'div',
+        { class: 'fields' },
+        h('small', {}, 'Over the Fylki on the home page and on the map. Without a picture the site draws it in black and white.'),
+        h('div', { class: 'field' }, h('span', { class: 'label' }, 'Shape of the banner'), shapePicker(clan, 'shape', { ...clan, main: true }, redraw)),
+      ),
+    );
+  };
+  redraw();
+  return h('details', { class: 'clan-banner-fold' }, h('summary', {}, 'Banner of the Völsung Clan'), box);
 }
 
 function fylkiView() {
@@ -888,7 +952,8 @@ function fylkiView() {
   return h(
     'section',
     {},
-    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Fylki'), h('p', {}, 'Each Fylki has its own page. The order here is the order on the home page and in the menu.')), namePlaces()),
+    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Fylki'), h('p', {}, 'Each Fylki has its own page. The order here is the order on the home page and in the menu.')), bannerSettings()),
+    flokkrIndex === null ? clanBannerForm() : null,
     h(
       'div',
       { class: 'subtabs' },
@@ -1018,20 +1083,50 @@ const SIZES: [PinSize, string][] = [
 ];
 
 /** Everything that can stand on the map, in the order of the list beside it. */
-type Pin = { name: string; banner?: string; main?: boolean; size: PinSize; sub?: boolean; get: () => Spot | undefined; set: (s?: Spot) => void };
+type Pin = {
+  name: string;
+  banner?: string;
+  main?: boolean;
+  shape?: string;
+  size: PinSize;
+  sub?: boolean;
+  get: () => Spot | undefined;
+  set: (s?: Spot) => void;
+  /** Its name above the banner instead of under it, which is left out of the file. */
+  above?: boolean;
+  setAbove: (above: boolean) => void;
+};
 function mapPins(map: Pages['map']): Pin[] {
   const unit = (u: Flokkr, size: PinSize, fallback: string, sub = false): Pin => ({
     name: u.name || fallback,
     banner: u.banner,
+    shape: u.shape,
     size,
     sub,
     get: () => u.mapAt,
     set: (s) => (s ? (u.mapAt = s) : delete u.mapAt),
+    above: u.mapNameAbove,
+    setAbove: (a) => (a ? (u.mapNameAbove = true) : delete u.mapNameAbove),
   });
   return [
-    { name: 'The Völsung Clan', main: true, size: 'big', get: () => map.clanAt, set: (s) => (s ? (map.clanAt = s) : delete map.clanAt) },
+    { name: 'The Völsung Clan', main: true, banner: data.site.banners?.clan?.banner, shape: data.site.banners?.clan?.shape, size: 'big',
+      get: () => map.clanAt,
+      set: (s) => (s ? (map.clanAt = s) : delete map.clanAt),
+      above: map.clanNameAbove,
+      setAbove: (a) => (a ? (map.clanNameAbove = true) : delete map.clanNameAbove),
+    },
     ...data.fylki.flatMap((f) => [unit(f, 'normal', 'New Fylki'), ...(f.flokkr ?? []).map((k) => unit(k, 'small', 'New Flokkr', true))]),
-    ...(map.markers ?? []).map((m): Pin => ({ name: m.name || 'New banner', banner: m.banner, size: m.size ?? 'normal', get: () => m.at, set: (s) => s && (m.at = s) })),
+    ...(map.markers ?? []).map(
+      (m): Pin => ({
+        name: m.name || 'New banner',
+        banner: m.banner,
+        size: m.size ?? 'normal',
+        get: () => m.at,
+        set: (s) => s && (m.at = s),
+        above: m.nameAbove,
+        setAbove: (a) => (a ? (m.nameAbove = true) : delete m.nameAbove),
+      }),
+    ),
   ];
 }
 
@@ -1041,17 +1136,19 @@ function freeSpot(map: Pages['map']): Spot {
   return { x: 15 + ((n * 17) % 75), y: 50 };
 }
 
-/** A banner as the site shows it, with the clan's own drawn in its colours. */
-function bannerEl(pin: { banner?: string; main?: boolean }) {
+/** A banner as the site shows it (src/components/Banner.astro), cut to its shape; the clan's own is drawn in its colours without a picture. */
+function bannerEl(pin: { banner?: string; main?: boolean; shape?: string }) {
   let inside: Kid = null;
-  if (pin.main) inside = h('i', { class: 'emblem', 'aria-hidden': 'true' });
-  else if (pin.banner) {
+  if (pin.banner) {
     const img = h('img', { alt: '' });
     img.draggable = false;
     showImage(img, pin.banner);
     inside = img;
-  }
-  return h('span', { class: `banner${pin.main ? ' main' : pin.banner ? '' : ' todo'}` }, inside);
+  } else if (pin.main) inside = h('i', { class: 'emblem', 'aria-hidden': 'true' });
+  const cut = cutOf(pin.shape);
+  const el = h('span', { class: `banner${pin.main ? ' main' : pin.banner ? '' : ' todo'}${cut ? ' shaped' : ''}` }, h('span', { class: 'cloth' }, inside));
+  if (cut) el.style.setProperty('--cut', cut);
+  return el;
 }
 
 /** Lets `el` be dragged around the map; `grip` is the part whose middle is the point. */
@@ -1093,7 +1190,7 @@ function mapStage(map: Pages['map']) {
       .filter((p) => p.get())
       .map((p) => {
         const banner = bannerEl(p);
-        const el = h('div', { class: `pennant ${p.size} map-pin`, title: `Drag ${p.name} onto its land` }, banner, h('b', {}, h('span', {}, p.name)));
+        const el = h('div', { class: `pennant ${p.size} map-pin${p.above ? ' name-above' : ''}`, title: `Drag ${p.name} onto its land` }, banner, h('b', {}, h('span', {}, p.name)));
         dragOnMap(el, banner, stage, () => p.get()!, p.set);
         return el;
       });
@@ -1101,6 +1198,16 @@ function mapStage(map: Pages['map']) {
   };
   draw();
   return { stage, draw };
+}
+
+/** A box that puts a banner's name above it on the map. */
+function nameAbove(p: Pin, after: () => void) {
+  return h(
+    'label',
+    { class: 'toggle small' },
+    h('input', { type: 'checkbox', checked: !!p.above, onchange: (e: Event) => (p.setAbove((e.target as HTMLInputElement).checked), changed(), after()) }),
+    h('span', {}, 'Name above'),
+  );
 }
 
 /** The clan, every Fylki and its Flokkr, each put on the map or taken off with its button. */
@@ -1113,7 +1220,7 @@ function pinList(map: Pages['map'], redraw: () => void) {
         'div',
         { class: `pin-row${p.sub ? ' sub' : ''}` },
         bannerEl(p),
-        h('span', {}, p.name),
+        h('div', { class: 'pin-name' }, h('span', {}, p.name), on ? nameAbove(p, redraw) : null),
         h(
           'button',
           { type: 'button', title: on ? `Take ${p.name} off the map` : `Put ${p.name} on the map`, onclick: () => (p.set(on ? undefined : freeSpot(map)), changed(), redraw()) },
@@ -1130,6 +1237,21 @@ function markerCard(list: Marker[], i: number, redraw: () => void, drawStage: ()
   name.addEventListener('input', drawStage);
   const size = select(m, 'size', SIZES, 'normal');
   size.addEventListener('change', drawStage);
+  const above = h(
+    'label',
+    { class: 'toggle' },
+    h('input', {
+      type: 'checkbox',
+      checked: !!m.nameAbove,
+      onchange: (e: Event) => {
+        if ((e.target as HTMLInputElement).checked) m.nameAbove = true;
+        else delete m.nameAbove;
+        changed();
+        drawStage();
+      },
+    }),
+    h('span', {}, 'Name above the banner'),
+  );
   return h(
     'article',
     { class: 'marker-card' },
@@ -1140,7 +1262,7 @@ function markerCard(list: Marker[], i: number, redraw: () => void, drawStage: ()
       field('Name', name),
       field('Link', input(m, 'link', { placeholder: 'https://… or /fylki/…' }), 'Optional. A click on the banner opens it.'),
       field('Size', size),
-      h('div', { class: 'tools' }, removeButton(list, i, redraw, 'banner')),
+      h('div', { class: 'tools' }, above, removeButton(list, i, redraw, 'banner')),
     ),
   );
 }
@@ -1210,7 +1332,7 @@ function mapView() {
           draw();
         },
       }),
-      h('span', {}, 'Names under the banners'),
+      h('span', {}, 'Names by the banners'),
     );
     // Left out of the file until something is added.
     const markers = map.markers ?? [];
@@ -1261,7 +1383,7 @@ function mapView() {
           ? h(
               'p',
               { class: 'meta' },
-              'Drag the banners and names into place. Everything grows and shrinks with the map as on the site; on a phone the names under the banners and the small names are left out.',
+              'Drag the banners and names into place. A name stands under its banner unless “Name above” is ticked beside it. Everything grows and shrinks with the map as on the site; on a phone the names by the banners and the small names are left out.',
             )
           : null,
         map.picture ? h('div', { class: 'map-edit' }, stage, pinList(map, redraw)) : null,
@@ -1422,6 +1544,7 @@ function render() {
   remember(TAB_KEY, tab, 'session');
   document.querySelectorAll<HTMLButtonElement>('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
   const views: Record<Tab, () => HTMLElement> = { photos: photosView, videos: videosView, fylki: fylkiView, news: newsView, map: mapView };
+  showPoles();
   $('content').replaceChildren(views[tab]());
 }
 

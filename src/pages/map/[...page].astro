@@ -2,7 +2,8 @@
 import Base from '../../layouts/Base.astro';
 import '../../styles/jarldom-map.css';
 import BackLink from '../../components/BackLink.astro';
-import { DISCORD_URL, fylki, hasPage, jarldomMap, type PinSize, type Spot } from '../../data/clan';
+import Banner from '../../components/Banner.astro';
+import { DISCORD_URL, bannerLook, fylki, hasPage, jarldomMap, type PinSize, type Spot } from '../../data/clan';
 import { mapPicture } from '../../lib/map-picture';
 
 // Built only while the map is turned on in the site panel, where every banner is also dragged onto its place.
@@ -10,21 +11,21 @@ export function getStaticPaths() {
   return jarldomMap.on ? [{ params: { page: undefined } }] : [];
 }
 
-type Pin = { name: string; banner?: string; main?: boolean; href?: string; external?: boolean; size: PinSize; at: Spot };
+type Pin = { name: string; banner?: string; main?: boolean; shape?: string; href?: string; external?: boolean; size: PinSize; at: Spot; nameAbove?: boolean };
 // The whole map for big screens, a smaller copy for the rest; it fills the page's width, at most 1148px.
 const picture = await mapPicture();
 const srcset = picture?.copies.length ? [...picture.copies.map((c) => `${c.src} ${c.width}w`), `${jarldomMap.picture} ${picture.width}w`].join(', ') : undefined;
 
 const pins: Pin[] = [
-  ...(jarldomMap.clanAt ? [{ name: 'The Völsung Clan', main: true, href: '/#jarldom', size: 'big' as const, at: jarldomMap.clanAt }] : []),
+  ...(jarldomMap.clanAt ? [{ name: 'The Völsung Clan', main: true, banner: bannerLook.clan.banner, shape: bannerLook.clan.shape, href: '/#jarldom', size: 'big' as const, at: jarldomMap.clanAt, nameAbove: jarldomMap.clanNameAbove }] : []),
   ...fylki.flatMap((f) => [
-    ...(f.mapAt ? [{ name: f.name, banner: f.banner, href: `/fylki/${f.slug}/`, size: 'normal' as const, at: f.mapAt }] : []),
+    ...(f.mapAt ? [{ name: f.name, banner: f.banner, shape: f.shape, href: `/fylki/${f.slug}/`, size: 'normal' as const, at: f.mapAt, nameAbove: f.mapNameAbove }] : []),
     // A Flokkr without a page of its own leads to its Fylki.
     ...f.flokkr
       .filter((k) => k.mapAt)
-      .map((k) => ({ name: k.name, banner: k.banner, href: hasPage(k) ? `/fylki/${f.slug}/${k.slug}/` : `/fylki/${f.slug}/`, size: 'small' as const, at: k.mapAt! })),
+      .map((k) => ({ name: k.name, banner: k.banner, shape: k.shape, href: hasPage(k) ? `/fylki/${f.slug}/${k.slug}/` : `/fylki/${f.slug}/`, size: 'small' as const, at: k.mapAt!, nameAbove: k.mapNameAbove })),
   ]),
-  ...jarldomMap.markers.map((m) => ({ name: m.name, banner: m.banner, href: m.link, external: Boolean(m.link && !m.link.startsWith('/')), size: m.size, at: m.at })),
+  ...jarldomMap.markers.map((m) => ({ name: m.name, banner: m.banner, href: m.link, external: Boolean(m.link && !m.link.startsWith('/')), size: m.size, at: m.at, nameAbove: m.nameAbove })),
 ];
 ---
 
@@ -57,16 +58,14 @@ const pins: Pin[] = [
               const Tag = p.href ? 'a' : 'div';
               return (
                 <Tag
-                  class:list={['pennant', p.size]}
+                  class:list={['pennant', p.size, { 'name-above': p.nameAbove }]}
                   href={p.href}
                   target={p.external ? '_blank' : undefined}
                   rel={p.external ? 'noopener' : undefined}
                   title={p.name}
                   style={`left: ${p.at.x}%; top: ${p.at.y}%`}
                 >
-                  <span class:list={['banner', { main: p.main, todo: !p.main && !p.banner }]}>
-                    {p.main ? <i class="emblem" aria-hidden="true" /> : p.banner && <img src={p.banner} alt="" />}
-                  </span>
+                  <Banner src={p.banner} main={p.main} shape={p.shape} />
                   <b>
                     <span>{p.name}</span>
                   </b>
@@ -87,9 +86,7 @@ const pins: Pin[] = [
               return (
                 <li>
                   <Tag href={p.href} target={p.external ? '_blank' : undefined} rel={p.external ? 'noopener' : undefined}>
-                    <span class:list={['banner', { main: p.main, todo: !p.main && !p.banner }]}>
-                      {p.main ? <i class="emblem" aria-hidden="true" /> : p.banner && <img src={p.banner} alt="" loading="lazy" />}
-                    </span>
+                    <Banner src={p.banner} main={p.main} shape={p.shape} lazy />
                     {p.name}
                   </Tag>
                 </li>

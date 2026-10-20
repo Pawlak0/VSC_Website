@@ -1,0 +1,33 @@
+---
+// A banner as the site draws it everywhere: the box sets its size, and the cloth inside holds the picture cut to the
+// banner's shape (src/lib/banner-shapes.ts). The clan's own banner is drawn in its colours; one without a picture yet
+// shows stripes. A Fylki or Flokkr with colours of its own is lit in its glow.
+import { cutOf } from '../lib/banner-shapes';
+
+interface Props {
+  src?: string;
+  alt?: string;
+  /** The clan's own banner, drawn in its colours when it has no picture. */
+  main?: boolean;
+  shape?: string;
+  lazy?: boolean;
+  /** Writes "Banner" on one that has no picture yet. */
+  label?: boolean;
+  /** A colour it is lit in, as #rrggbb. */
+  glow?: string;
+  class?: string;
+  style?: string;
+}
+
+const { src, alt = '', main, shape, lazy, label, glow, class: className, style } = Astro.props;
+const cut = cutOf(shape);
+---
+
+<span
+  class:list={['banner', className, { main, todo: !main && !src, shaped: cut, glows: glow }]}
+  style={[style, cut && `--cut: ${cut}`, glow && `--glow: ${glow}`].filter(Boolean).join('; ') || undefined}
+>
+  <span class="cloth">
+    {src ? <img src={src} alt={alt} loading={lazy ? 'lazy' : undefined} decoding={lazy ? 'async' : undefined} /> : main ? <i class="emblem" aria-hidden="true" /> : label && <i>Banner</i>}
+  </span>
+</span>

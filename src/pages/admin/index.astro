@@ -194,8 +194,18 @@ const tokenPage = 'https://github.com/settings/tokens/new?scopes=public_repo&des
   .page-box { display: grid; gap: 16px; margin: 16px 0 24px; padding: 20px; background: var(--field); border: 1px solid var(--line); }
   .page-box .bar { margin-bottom: 0; }
   .page-box .bar h3 { font-size: 24px; }
-  .name-places { display: grid; grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 8px 12px; width: min(100%, 380px); }
-  .name-places small { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+  .banner-settings { display: grid; justify-items: start; width: min(100%, 300px); }
+  .banner-settings small { font-size: 12px; color: var(--muted); }
+  .clan-banner-fold { margin: 0 0 20px; }
+  .clan-banner-fold > summary { cursor: pointer; font: 700 15px var(--f-display); letter-spacing: 0.08em; color: var(--gold); padding: 6px 0; }
+  .clan-banner-fold > .panel-box { margin-top: 8px; }
+  /* The shapes of a banner, each a small banner to click, on a lighter ground so a black banner shows its cut too. */
+  .shapes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .shape { display: grid; justify-items: center; align-content: start; gap: 6px; width: 70px; padding: 10px 4px 6px; background: #2b2924; border: 1px solid var(--line); color: var(--muted); cursor: pointer; }
+  .shape .banner { width: 36px; }
+  .admin .shape small { font-size: 11px; line-height: 1.2; text-align: center; }
+  .shape:hover { border-color: var(--gold); color: var(--ink); }
+  .shape.on { border-color: var(--gold); color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, #2b2924); }
   .color-picks { display: flex; flex-wrap: wrap; gap: 8px 24px; }
   .color-pick { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
   .color-pick input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--gold); }
@@ -222,7 +232,10 @@ const tokenPage = 'https://github.com/settings/tokens/new?scopes=public_repo&des
   .pin-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 4px 0; }
   .pin-row.sub { padding-left: 18px; grid-template-columns: 22px minmax(0, 1fr) auto; }
   .pin-row .banner, .pin-row .banner.main { width: 100%; }
-  .pin-row > span:not(.banner) { font: 700 14px var(--f-display); letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pin-name { display: grid; min-width: 0; }
+  .pin-name > span { font: 700 14px var(--f-display); letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .admin .pin-name .toggle { padding: 2px 0 0; gap: 6px; font-size: 12px; color: var(--muted); }
+  .admin .pin-name .toggle input { width: 14px; height: 14px; }
   .pin-row button { background: none; border: 1px solid var(--line); color: var(--ink); padding: 3px 9px; font-size: 12px; cursor: pointer; white-space: nowrap; }
   .pin-row button:hover { border-color: var(--gold); color: var(--gold); }
   .markers { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 12px; }

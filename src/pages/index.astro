@@ -2,12 +2,13 @@
 import Base from '../layouts/Base.astro';
 import FylkiBanner from '../components/FylkiBanner.astro';
 import FlokkrList from '../components/FlokkrList.astro';
+import Banner from '../components/Banner.astro';
 import Rank from '../components/Rank.astro';
 import Gallery from '../components/Gallery.astro';
 import Lightbox from '../components/Lightbox.astro';
 import VideoGrid from '../components/VideoGrid.astro';
 import NewsCards from '../components/NewsCards.astro';
-import { DISCORD_URL, pillars, events, CLAN_TIME_ZONE, fylki, jarldomMap, news, tiers, shieldwall, folk, leaders, gallery, videos, creators, otherGames, faq } from '../data/clan';
+import { DISCORD_URL, bannerLook, pillars, events, CLAN_TIME_ZONE, fylki, jarldomMap, news, tiers, shieldwall, folk, leaders, gallery, videos, creators, otherGames, faq } from '../data/clan';
 import { fetchCounts, inviteCode } from '../lib/discord';
 import { upcomingEvents } from '../lib/sesh';
 import { videoCards } from '../lib/videos';
@@ -181,7 +182,7 @@ const platform = (url: string) => {
       </div>
       <div class="crown">
         <div class="bannerframe">
-          <div class="banner main"><i class="emblem" aria-hidden="true"></i></div>
+          <Banner main src={bannerLook.clan.banner} alt="Banner of the Völsung Clan" shape={bannerLook.clan.shape} lazy />
           <b>The Völsung Clan</b>
           <small>Main banner of the clan</small>
         </div>

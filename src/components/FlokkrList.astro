@@ -1,5 +1,6 @@
 ---
-import { hasPage, type Fylki } from '../data/clan';
+import { glowOf, hasPage, type Fylki } from '../data/clan';
+import Banner from './Banner.astro';
 
 interface Props {
   fylki: Fylki;
@@ -14,9 +15,7 @@ const { fylki } = Astro.props;
       fylki.flokkr.map((k) => {
         // Smaller than the Fylki's banner; it morphs into the big one on the Flokkr's own page.
         const banner = (
-          <span class:list={['banner', { todo: !k.banner }]} style={`view-transition-name: banner-${fylki.slug}-${k.slug}`}>
-            {k.banner && <img src={k.banner} alt="" loading="lazy" />}
-          </span>
+          <Banner src={k.banner} shape={k.shape} glow={glowOf(k.colors)} lazy style={`view-transition-name: banner-${fylki.slug}-${k.slug}`} />
         );
         return hasPage(k) ? (
           <a class="pennant" href={`/fylki/${fylki.slug}/${k.slug}/`}>
