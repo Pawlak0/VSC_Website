@@ -95,7 +95,8 @@
     },
     "colors": {
       "accent": "#e8b24a"
-    }
+    },
+    "shape": "torn"
   },
   {
     "slug": "kattegat",
