@@ -1,0 +1,29 @@
+---
+import Base from '../layouts/Base.astro';
+import { DISCORD_URL } from '../data/clan';
+// GitHub Pages shows this for any address that does not exist on the site, e.g. an old link to a page that moved.
+---
+
+<Base title="Page not found" description="This page of The Völsung Clan does not exist." noindex>
+  <section>
+    <div class="wrap lost">
+      <div class="head" data-stagger>
+        <p class="eyebrow">404</p>
+        <h1>Lost in the mist</h1>
+        <p>There is no page at this address. It may have moved, or the link was mistyped.</p>
+      </div>
+      <div class="links" data-reveal>
+        <a class="btn btn-gold" href="/">Home page</a>
+        <a class="textlink" href="/#jarldom">The Jarldom</a>
+        <a class="textlink" href="/media/">Media</a>
+        <a class="textlink" href={DISCORD_URL} target="_blank" rel="noopener">Ask on Discord</a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .lost { min-height: 50vh; display: grid; align-content: center; }
+  h1 { font-size: clamp(36px, 7vw, 84px); font-weight: 900; letter-spacing: 0.05em; }
+  .links { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; margin-top: 32px; }
+</style>

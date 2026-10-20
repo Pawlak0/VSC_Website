@@ -5,6 +5,7 @@ import Saga from '../../../components/Saga.astro';
 import Leadership from '../../../components/Leadership.astro';
 import Gallery from '../../../components/Gallery.astro';
 import Lightbox from '../../../components/Lightbox.astro';
+import BackLink from '../../../components/BackLink.astro';
 import { DISCORD_URL, fylki, hasPage, type Flokkr, type Fylki } from '../../../data/clan';
 
 // A page for each Flokkr that has a description, saga, LS or photos; the others are only named on their Fylki's page.
@@ -21,6 +22,9 @@ const others = f.flokkr.filter((o) => o.slug !== k.slug && hasPage(o));
 
 <Base title={`${k.name} Flokkr`} description={k.description ?? `${k.name}, a Flokkr of ${f.name} in The Völsung Clan.`}>
   <section class="fylki-hero">
+    <div class="wrap">
+      <BackLink href={`/fylki/${f.slug}/`} label={`Back to ${f.name}`} />
+    </div>
     <div class="wrap intro">
       <FylkiBanner fylki={{ ...k, slug: `${f.slug}-${k.slug}` }} />
       <div class="txt" data-stagger>

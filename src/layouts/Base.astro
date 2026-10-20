@@ -7,12 +7,15 @@ interface Props {
   description?: string;
   /** The picture shown when the page is shared, e.g. on Discord. */
   image?: string;
+  /** For a page search engines should leave out, such as the one for a missing address. */
+  noindex?: boolean;
 }
 
 const {
   title,
   description = "A Viking clan in Mount & Blade II: Bannerlord. We fight in the game's biggest events and open-world mods like Persistent Bannerlord. EU-based and newcomer friendly.",
   image = '/img/og.jpg',
+  noindex = false,
 } = Astro.props;
 // The home page title carries the words people search for; other pages lead with their own name.
 const fullTitle = title ? `${title} · The Völsung Clan` : 'The Völsung Clan · Viking clan in Mount & Blade II: Bannerlord';
@@ -57,7 +60,7 @@ const clanData = {
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
     <link rel="sitemap" href="/sitemap.xml" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -122,6 +125,9 @@ const clanData = {
         </span>
       </div>
     </footer>
+    <button class="to-top" type="button" aria-label="Back to the top" tabindex="-1">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
+    </button>
 
     <script>
       const root = document.documentElement;
@@ -157,6 +163,30 @@ const clanData = {
         if (e.key === 'Escape') toggle(false);
       });
 
+      // A back link to the page the visitor just came from steps back instead, to where they were on it.
+      document.querySelectorAll<HTMLAnchorElement>('a[data-back]').forEach((a) =>
+        a.addEventListener('click', (e) => {
+          if (!document.referrer || history.length < 2) return;
+          const from = new URL(document.referrer);
+          if (from.origin !== location.origin || from.pathname !== a.pathname) return;
+          e.preventDefault();
+          history.back();
+        }),
+      );
+
+      // Back to the top, once the page has been scrolled well down.
+      const up = document.querySelector<HTMLButtonElement>('.to-top');
+      if (up) {
+        const show = () => {
+          const shown = scrollY > innerHeight * 1.5;
+          up.classList.toggle('shown', shown);
+          up.tabIndex = shown ? 0 : -1;
+        };
+        addEventListener('scroll', show, { passive: true });
+        show();
+        up.addEventListener('click', () => scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }));
+      }
+
       // Mark the nav link of the section in the middle of the screen.
       const sectionLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('.nav ul a')).filter((a) => a.hash && a.pathname === location.pathname);
       const links = new Map(sectionLinks.map((a) => [a.hash.slice(1), a]));
@@ -179,6 +209,28 @@ const clanData = {
 </html>
 
 <style>
+  .to-top {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    z-index: 20;
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: color-mix(in srgb, var(--pitch) 88%, transparent);
+    border: 1px solid var(--line);
+    color: var(--gold);
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(8px);
+    transition: opacity 0.25s, transform 0.25s, visibility 0.25s, border-color 0.2s;
+  }
+  .to-top.shown { opacity: 1; visibility: visible; transform: none; }
+  .to-top:hover { border-color: var(--gold); }
+  .to-top svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.8; fill: none; }
   .nav {
     position: sticky;
     top: 0;

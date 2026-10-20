@@ -6,6 +6,7 @@ import FlokkrList from '../../components/FlokkrList.astro';
 import Saga from '../../components/Saga.astro';
 import Lightbox from '../../components/Lightbox.astro';
 import Leadership from '../../components/Leadership.astro';
+import BackLink from '../../components/BackLink.astro';
 import { DISCORD_URL, fylki, type Fylki } from '../../data/clan';
 
 export function getStaticPaths() {
@@ -18,6 +19,9 @@ const others = fylki.filter((o) => o.slug !== f.slug);
 
 <Base title={f.name} description={`${f.name}, a Fylki of The Völsung Clan in Mount & Blade II: Bannerlord.`}>
   <section class="fylki-hero">
+    <div class="wrap">
+      <BackLink href="/#jarldom" label="Back to the Jarldom" />
+    </div>
     <div class="wrap intro">
       <FylkiBanner fylki={f} />
       <div class="txt" data-stagger>

@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import NewsCards from '../../components/NewsCards.astro';
+import BackLink from '../../components/BackLink.astro';
 import { DISCORD_URL, news, type Post } from '../../data/clan';
 import { newsDate, postPicture } from '../../lib/news';
 
@@ -14,6 +15,10 @@ export function getStaticPaths() {
 const { post } = Astro.props as { post?: Post };
 const picture = post && (await postPicture(post.picture, 1400));
 const share = post && (await postPicture(post.picture, 1200, 'jpg'));
+// The posts on either side of this one; the list is newest first.
+const at = post ? news.posts.findIndex((p) => p.id === post.id) : -1;
+const newer = at > 0 ? news.posts[at - 1] : undefined;
+const older = at >= 0 ? news.posts[at + 1] : undefined;
 ---
 
 {
@@ -21,6 +26,7 @@ const share = post && (await postPicture(post.picture, 1200, 'jpg'));
     <Base title={post.title} description={post.text[0] ?? `News of The Völsung Clan from ${newsDate(post.date)}.`} image={share}>
       <section>
         <article class="wrap post">
+          <BackLink href="/news/" label="All news" />
           <div class="head" data-stagger>
             <p class="eyebrow">{post.date ? <time datetime={post.date}>{newsDate(post.date)}</time> : 'News'}</p>
             <h1>{post.title}</h1>
@@ -31,6 +37,22 @@ const share = post && (await postPicture(post.picture, 1200, 'jpg'));
               <p>{t}</p>
             ))}
           </div>
+          {(older || newer) && (
+            <nav class="post-nav" aria-label="More news" data-reveal>
+              {older && (
+                <a class="older" href={`/news/${older.id}/`}>
+                  <small>← Older</small>
+                  {older.title}
+                </a>
+              )}
+              {newer && (
+                <a class="newer" href={`/news/${newer.id}/`}>
+                  <small>Newer →</small>
+                  {newer.title}
+                </a>
+              )}
+            </nav>
+          )}
           <div class="links" data-reveal>
             <a class="textlink" href="/news/">All news</a>
             <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
@@ -42,6 +64,7 @@ const share = post && (await postPicture(post.picture, 1200, 'jpg'));
     <Base title="News" description="News and announcements of The Völsung Clan in Mount & Blade II: Bannerlord: events, promotions and word from the field.">
       <section>
         <div class="wrap">
+          <BackLink href={news.posts.length ? '/#news' : '/'} label="Back to the home page" />
           <div class="head" data-stagger>
             <p class="eyebrow">The Völsung Clan</p>
             <h1>News</h1>
@@ -66,5 +89,11 @@ const share = post && (await postPicture(post.picture, 1200, 'jpg'));
   .post .pic { width: 100%; height: auto; border: 1px solid var(--line); margin-bottom: 32px; }
   .post .text { display: grid; gap: 18px; max-width: 68ch; font-size: clamp(18px, 1.6vw, 20px); }
   .none { color: var(--muted); font-style: italic; }
+  .post-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 48px; }
+  .post-nav a { display: grid; gap: 6px; padding: 16px 18px; border: 1px solid var(--line); background: var(--field); color: var(--ink); text-decoration: none; font-family: var(--f-display); font-weight: 700; letter-spacing: 0.04em; transition: border-color 0.2s, transform 0.2s; }
+  .post-nav a:hover { border-color: var(--gold); transform: translateY(-2px); }
+  .post-nav small { font-size: 12px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+  .post-nav .newer { grid-column: 2; text-align: right; }
+  @media (max-width: 560px) { .post-nav { grid-template-columns: 1fr; } .post-nav .newer { grid-column: auto; } }
   .links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; margin-top: 40px; }
 </style>

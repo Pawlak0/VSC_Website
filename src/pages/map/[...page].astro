@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import '../../styles/jarldom-map.css';
+import BackLink from '../../components/BackLink.astro';
 import { DISCORD_URL, fylki, hasPage, jarldomMap, type PinSize, type Spot } from '../../data/clan';
 import { mapPicture } from '../../lib/map-picture';
 
@@ -30,6 +31,7 @@ const pins: Pin[] = [
 <Base title="Map of the Jarldom" description="The lands of The Völsung Clan in Mount & Blade II: Bannerlord, with the banner of each Fylki on its land.">
   <section>
     <div class="wrap">
+      <BackLink href="/#jarldom" label="Back to the Jarldom" />
       <div class="head" data-stagger>
         <p class="eyebrow">The Jarldom</p>
         <h1>Map of the Jarldom</h1>
@@ -76,6 +78,26 @@ const pins: Pin[] = [
           <p class="none">The map is still being drawn.</p>
         )
       }
+      {
+        // On a phone the names under the banners are left out, so they are listed under the map instead.
+        jarldomMap.picture && pins.length > 0 && (
+          <ul class:list={['legend', { always: !jarldomMap.names }]} data-reveal>
+            {pins.map((p) => {
+              const Tag = p.href ? 'a' : 'span';
+              return (
+                <li>
+                  <Tag href={p.href} target={p.external ? '_blank' : undefined} rel={p.external ? 'noopener' : undefined}>
+                    <span class:list={['banner', { main: p.main, todo: !p.main && !p.banner }]}>
+                      {p.main ? <i class="emblem" aria-hidden="true" /> : p.banner && <img src={p.banner} alt="" loading="lazy" />}
+                    </span>
+                    {p.name}
+                  </Tag>
+                </li>
+              );
+            })}
+          </ul>
+        )
+      }
       <div class="links" data-reveal>
         <a class="textlink" href="/#jarldom">Back to the Jarldom</a>
         {jarldomMap.picture && <a class="textlink" href={jarldomMap.picture} target="_blank" rel="noopener">Open the full map</a>}
@@ -88,5 +110,11 @@ const pins: Pin[] = [
 <style>
   h1 { font-size: clamp(36px, 7vw, 84px); font-weight: 900; letter-spacing: 0.05em; }
   .none { color: var(--muted); font-style: italic; }
+  .legend { display: none; list-style: none; margin: 20px 0 0; padding: 0; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 16px; }
+  .legend.always { display: grid; }
+  @media (max-width: 600px) { .legend { display: grid; } }
+  .legend a, .legend li > span { display: flex; align-items: center; gap: 10px; font-family: var(--f-display); font-size: 14px; letter-spacing: 0.06em; color: var(--ink); text-decoration: none; }
+  .legend a:hover { color: var(--gold); }
+  .legend .banner, .legend .banner.main { width: 22px; flex: none; }
   .links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; margin-top: 40px; }
 </style>
