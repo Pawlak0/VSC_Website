@@ -100,7 +100,16 @@ export type Flokkr = {
   gallery: GalleryImage[];
   /** Where its banner stands on the map of the Jarldom; see Spot. */
   mapAt?: Spot;
+  /** Colours from its banner for its own page; see BannerColors. */
+  colors?: BannerColors;
 };
+
+/**
+ * Colours taken from a banner, as #rrggbb. On the unit's own page `accent` takes the place of the site's gold (small
+ * headings, link lines, the banner's frame) and lights the banner. `glow`, when set, lights the banner instead and also
+ * tints the lines and bands between the sections. The menu at the top and the footer keep the clan's gold.
+ */
+export type BannerColors = { accent: string; glow?: string };
 
 /** A place on the map of the Jarldom, in percent of the map's width (x) and height (y) from its top left corner. */
 export type Spot = { x: number; y: number };
@@ -125,6 +134,8 @@ export type Fylki = {
   movedFrom?: string;
   /** Where its banner stands on the map of the Jarldom. */
   mapAt?: Spot;
+  /** Colours from its banner for its own page. */
+  colors?: BannerColors;
 };
 
 /** What each LS role means, shown on every Fylki and Flokkr page. */
@@ -144,6 +155,8 @@ const leadership = (ls?: Partial<FylkiLeadership>): FylkiLeadership => ({
 });
 const photosOf = (list?: GalleryImage[]) => (list ?? []).filter((g) => g?.src);
 const spot = (s?: Partial<Spot>): Spot | undefined => (Number.isFinite(s?.x) && Number.isFinite(s?.y) ? { x: s!.x!, y: s!.y! } : undefined);
+const hex = (v?: string) => (/^#[0-9a-f]{6}$/i.test(v ?? '') ? v : undefined);
+const colorsOf = (c?: Partial<BannerColors>): BannerColors | undefined => (hex(c?.accent) ? { accent: c!.accent!, glow: hex(c?.glow) } : undefined);
 
 // Kept in fylki.json, which the site panel at /admin/ edits. A field the panel leaves out counts as empty,
 // and a row added without a name or picture is skipped.
@@ -170,6 +183,7 @@ export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
         lore: (k.lore ?? []).filter(Boolean),
         gallery: photosOf(k.gallery),
         mapAt: spot(k.mapAt),
+        colors: colorsOf(k.colors),
       })),
     ls: leadership(f.ls),
     loreTitle: f.loreTitle || undefined,
@@ -177,6 +191,7 @@ export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
     gallery: photosOf(f.gallery),
     movedFrom: f.movedFrom || undefined,
     mapAt: spot(f.mapAt),
+    colors: colorsOf(f.colors),
   }));
 
 /** Whether a Flokkr has enough about it for a page of its own. */

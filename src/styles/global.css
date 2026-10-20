@@ -173,6 +173,22 @@ a.pennant:hover b { color: var(--ink); }
 }
 .textlink:hover { color: var(--ink); border-color: var(--ink); }
 
+/* A Fylki or Flokkr page in the colours of its banner (colors in fylki.json). Base.astro sets --accent and --glow on
+   <main>: the accent takes the place of the gold, the glow lights the banner and tints the lines, and buttons and
+   links turn the white of the banners. A glow of its own (class tinted) also tints the bands. */
+main.banner-colors { --gold: var(--accent); --gold-ink: var(--pitch); --banner-white: #f2ede3; }
+main.banner-colors .fylki-hero .banner {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 0 90px 12px color-mix(in srgb, var(--glow) 26%, transparent);
+}
+main.banner-colors > section + section { border-top: 1px solid color-mix(in srgb, var(--glow) 38%, transparent); }
+main.banner-colors.tinted .band { background: color-mix(in srgb, var(--glow) 7%, var(--pitch)); }
+main.banner-colors .ls { background: color-mix(in srgb, var(--glow) 28%, var(--line)); border-color: color-mix(in srgb, var(--glow) 28%, var(--line)); }
+main.banner-colors .btn-gold { background: var(--banner-white); color: var(--pitch); border-color: var(--banner-white); }
+main.banner-colors .btn-gold:hover { background: transparent; color: var(--banner-white); }
+main.banner-colors .textlink { color: var(--banner-white); border-color: var(--accent); }
+main.banner-colors .textlink:hover { color: var(--accent); border-color: var(--accent); }
+
 /* Scroll reveal. Base.astro sets html.motion when the browser can observe scrolling
    and the visitor has not asked for reduced motion; without it everything stays visible.
    data-reveal: the element rises in as one piece.
