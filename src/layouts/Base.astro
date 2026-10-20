@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { DISCORD_URL, fylki, jarldomMap, news } from '../data/clan';
+import { DISCORD_URL, bannerNames, fylki, jarldomMap, news } from '../data/clan';
 
 interface Props {
   title?: string;
@@ -85,7 +85,7 @@ const clanData = {
       }
     </script>
   </head>
-  <body>
+  <body class:list={{ 'fylki-names-above': bannerNames.fylki === 'above', 'flokkr-names-above': bannerNames.flokkr === 'above' }}>
     <nav class="nav" aria-label="Main">
       <div class="wrap">
         <a class="brand" href="/"><i class="emblem" aria-hidden="true"></i>Völsung</a>

@@ -1,4 +1,4 @@
-// The site panel at /admin/. It edits src/data/photos.json, videos.json, fylki.json and pages.json, the same files
+// The site panel at /admin/. It edits src/data/photos.json, videos.json, fylki.json, pages.json and site.json, the same files
 // the site is built from, and saves them with any new pictures as one commit on main; the site then rebuilds by itself.
 import { GitHub, GitHubError, OWNER, REPO, type Change } from './github';
 import { shrink, slugify } from './images';
@@ -51,7 +51,11 @@ type Pages = {
     labels?: MapLabel[];
   };
 };
-type Data = { photos: Photo[]; videos: Video[]; fylki: Fylki[]; pages: Pages };
+/** Where a banner's name stands on the site. */
+type NamePlace = 'under' | 'above';
+/** Settings for the whole site. */
+type Site = { banners?: { fylkiNames?: NamePlace; flokkrNames?: NamePlace } };
+type Data = { photos: Photo[]; videos: Video[]; fylki: Fylki[]; pages: Pages; site: Site };
 type Key = keyof Data;
 type Tab = 'photos' | 'videos' | 'fylki' | 'news' | 'map';
 const TABS: Tab[] = ['photos', 'videos', 'fylki', 'news', 'map'];
@@ -61,8 +65,9 @@ const FILES: Record<Key, string> = {
   videos: 'src/data/videos.json',
   fylki: 'src/data/fylki.json',
   pages: 'src/data/pages.json',
+  site: 'src/data/site.json',
 };
-const NAMES: Record<Key, string> = { photos: 'photos', videos: 'videos', fylki: 'Fylki', pages: 'pages' };
+const NAMES: Record<Key, string> = { photos: 'photos', videos: 'videos', fylki: 'Fylki', pages: 'pages', site: 'banner names' };
 const KEYS = Object.keys(FILES) as Key[];
 const ROLES: [Role, string][] = [
   ['leaders', 'Leadership'],
@@ -114,7 +119,7 @@ let gh: GitHub;
 let login = '';
 /** The commit the panel last loaded or saved; a save builds on it. */
 let base = '';
-let data: Data = { photos: [], videos: [], fylki: [], pages: { news: { posts: [] }, map: {} } };
+let data: Data = { photos: [], videos: [], fylki: [], pages: { news: { posts: [] }, map: {} }, site: {} };
 /** Each data file as it is on GitHub at `base`, to tell what changed. */
 const saved = {} as Record<Key, string>;
 /** Files in the picture folders on GitHub, as repo paths. */
@@ -808,6 +813,22 @@ function unitForm(u: Fylki, parent?: Fylki) {
   return form;
 }
 
+/** Whether the names stand under or above the banners, for all Fylki and all Flokkr at once. */
+function namePlaces() {
+  const banners = (data.site.banners ??= {});
+  const places: [string, string][] = [
+    ['under', 'Under the banner'],
+    ['above', 'Above the banner'],
+  ];
+  return h(
+    'div',
+    { class: 'name-places' },
+    field('Fylki names', select(banners, 'fylkiNames', places, 'under')),
+    field('Flokkr names', select(banners, 'flokkrNames', places, 'under')),
+    h('small', {}, 'For every banner on the home page and the Fylki and Flokkr pages. The clan banner follows the Fylki.'),
+  );
+}
+
 function fylkiView() {
   fylkiIndex = Math.min(fylkiIndex, Math.max(0, data.fylki.length - 1));
   const f = data.fylki[fylkiIndex];
@@ -816,7 +837,7 @@ function fylkiView() {
   return h(
     'section',
     {},
-    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Fylki'), h('p', {}, 'Each Fylki has its own page. The order here is the order on the home page and in the menu.'))),
+    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Fylki'), h('p', {}, 'Each Fylki has its own page. The order here is the order on the home page and in the menu.')), namePlaces()),
     h(
       'div',
       { class: 'subtabs' },
@@ -1355,15 +1376,16 @@ function render() {
 
 async function load() {
   base = await gh.head();
-  const [photos, videos, fylki, pages, galleryFiles, fylkiFiles] = await Promise.all([
+  const [photos, videos, fylki, pages, site, galleryFiles, fylkiFiles] = await Promise.all([
     gh.text(FILES.photos, base),
     gh.text(FILES.videos, base),
     gh.text(FILES.fylki, base),
     gh.text(FILES.pages, base),
+    gh.text(FILES.site, base),
     gh.list(GALLERY.slice(1, -1), base),
     gh.list(`public${FYLKI_IMG.slice(0, -1)}`, base),
   ]);
-  data = { photos: JSON.parse(photos), videos: JSON.parse(videos), fylki: JSON.parse(fylki), pages: JSON.parse(pages) };
+  data = { photos: JSON.parse(photos), videos: JSON.parse(videos), fylki: JSON.parse(fylki), pages: JSON.parse(pages), site: JSON.parse(site) };
   for (const k of KEYS) saved[k] = serialize(data[k]);
   repoFiles = new Set([...galleryFiles, ...fylkiFiles]);
   try {
