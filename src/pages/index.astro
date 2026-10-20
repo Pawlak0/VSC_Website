@@ -6,7 +6,8 @@ import Rank from '../components/Rank.astro';
 import Gallery from '../components/Gallery.astro';
 import Lightbox from '../components/Lightbox.astro';
 import VideoGrid from '../components/VideoGrid.astro';
-import { DISCORD_URL, pillars, events, CLAN_TIME_ZONE, fylki, jarldomMap, tiers, shieldwall, folk, leaders, gallery, videos, creators, otherGames, faq } from '../data/clan';
+import NewsCards from '../components/NewsCards.astro';
+import { DISCORD_URL, pillars, events, CLAN_TIME_ZONE, fylki, jarldomMap, news, tiers, shieldwall, folk, leaders, gallery, videos, creators, otherGames, faq } from '../data/clan';
 import { fetchCounts, inviteCode } from '../lib/discord';
 import { upcomingEvents } from '../lib/sesh';
 import { videoCards } from '../lib/videos';
@@ -83,6 +84,21 @@ const platform = (url: string) => {
       </div>
     </div>
   </section>
+
+  {
+    news.on && news.posts.length > 0 && (
+      <section id="news" class="band">
+        <div class="wrap newsrow">
+          <div class="head" data-stagger>
+            <p class="eyebrow">News</p>
+            <h2>From the hall</h2>
+          </div>
+          <NewsCards posts={news.posts.slice(0, 3)} />
+          <a class="textlink" href="/news/">All news</a>
+        </div>
+      </section>
+    )
+  }
 
   <section id="events">
     <div class="wrap">
@@ -612,6 +628,9 @@ const platform = (url: string) => {
   .fylki > div { display: grid; grid-row: span 2; grid-template-rows: subgrid; align-content: start; gap: 18px; justify-items: center; }
   @media (max-width: 700px) { .fylki { grid-template-columns: 1fr; } }
   .maplink { justify-self: center; }
+  .newsrow { display: grid; gap: 28px; justify-items: start; }
+  .newsrow .head { margin-bottom: 0; }
+  .newsrow :global(.news-cards) { width: 100%; }
 
   .tiers { display: grid; gap: 2px; background: var(--line); border: 1px solid var(--line); }
   .tier { background: var(--pitch); display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; padding: 22px; }

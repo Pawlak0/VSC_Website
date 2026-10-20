@@ -1,13 +1,25 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { DISCORD_URL, fylki, jarldomMap } from '../../data/clan';
+import '../../styles/jarldom-map.css';
+import { DISCORD_URL, fylki, hasPage, jarldomMap, type PinSize, type Spot } from '../../data/clan';
 
-// Built only while the map is turned on in the site panel, where each Fylki's banner is also dragged onto its land.
+// Built only while the map is turned on in the site panel, where every banner is also dragged onto its place.
 export function getStaticPaths() {
   return jarldomMap.on ? [{ params: { page: undefined } }] : [];
 }
 
-const placed = fylki.filter((f) => f.mapAt);
+type Pin = { name: string; banner?: string; main?: boolean; href?: string; external?: boolean; size: PinSize; at: Spot };
+const pins: Pin[] = [
+  ...(jarldomMap.clanAt ? [{ name: 'The Völsung Clan', main: true, href: '/#jarldom', size: 'big' as const, at: jarldomMap.clanAt }] : []),
+  ...fylki.flatMap((f) => [
+    ...(f.mapAt ? [{ name: f.name, banner: f.banner, href: `/fylki/${f.slug}/`, size: 'normal' as const, at: f.mapAt }] : []),
+    // A Flokkr without a page of its own leads to its Fylki.
+    ...f.flokkr
+      .filter((k) => k.mapAt)
+      .map((k) => ({ name: k.name, banner: k.banner, href: hasPage(k) ? `/fylki/${f.slug}/${k.slug}/` : `/fylki/${f.slug}/`, size: 'small' as const, at: k.mapAt! })),
+  ]),
+  ...jarldomMap.markers.map((m) => ({ name: m.name, banner: m.banner, href: m.link, external: Boolean(m.link && !m.link.startsWith('/')), size: m.size, at: m.at })),
+];
 ---
 
 <Base title="Map of the Jarldom" description="The lands of The Völsung Clan in Mount & Blade II: Bannerlord, with the banner of each Fylki on its land.">
@@ -20,14 +32,33 @@ const placed = fylki.filter((f) => f.mapAt);
       </div>
       {
         jarldomMap.picture ? (
-          <div class="map" data-reveal>
+          <div class:list={['jarldom', { nameless: !jarldomMap.names }]} data-reveal>
             <img src={jarldomMap.picture} alt="Map of the lands of the Jarldom" />
-            {placed.map((f) => (
-              <a class="pennant" href={`/fylki/${f.slug}/`} style={`left: ${f.mapAt!.x}%; top: ${f.mapAt!.y}%`}>
-                <span class:list={['banner', { todo: !f.banner }]}>{f.banner && <img src={f.banner} alt="" />}</span>
-                <b>{f.name}</b>
-              </a>
+            {jarldomMap.labels.map((l) => (
+              <span class:list={['map-label', l.size, { light: l.light }]} style={`left: ${l.at.x}%; top: ${l.at.y}%; --tilt: ${l.tilt}deg`}>
+                {l.text}
+              </span>
             ))}
+            {pins.map((p) => {
+              const Tag = p.href ? 'a' : 'div';
+              return (
+                <Tag
+                  class:list={['pennant', p.size]}
+                  href={p.href}
+                  target={p.external ? '_blank' : undefined}
+                  rel={p.external ? 'noopener' : undefined}
+                  title={p.name}
+                  style={`left: ${p.at.x}%; top: ${p.at.y}%`}
+                >
+                  <span class:list={['banner', { main: p.main, todo: !p.main && !p.banner }]}>
+                    {p.main ? <i class="emblem" aria-hidden="true" /> : p.banner && <img src={p.banner} alt="" />}
+                  </span>
+                  <b>
+                    <span>{p.name}</span>
+                  </b>
+                </Tag>
+              );
+            })}
           </div>
         ) : (
           <p class="none">The map is still being drawn.</p>
@@ -35,6 +66,7 @@ const placed = fylki.filter((f) => f.mapAt);
       }
       <div class="links" data-reveal>
         <a class="textlink" href="/#jarldom">Back to the Jarldom</a>
+        {jarldomMap.picture && <a class="textlink" href={jarldomMap.picture} target="_blank" rel="noopener">Open the full map</a>}
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
       </div>
     </div>
@@ -43,14 +75,6 @@ const placed = fylki.filter((f) => f.mapAt);
 
 <style>
   h1 { font-size: clamp(36px, 7vw, 84px); font-weight: 900; letter-spacing: 0.05em; }
-  /* Banners are sized by the map's width, so they sit the same on a phone as in the panel. */
-  .map { position: relative; container-type: inline-size; border: 1px solid var(--line); --pennant: clamp(24px, 6cqw, 84px); }
-  .map > img { display: block; width: 100%; height: auto; }
-  /* The banner's middle is the point; the name hangs under it. */
-  .map .pennant { position: absolute; transform: translate(-50%, -50%); }
-  .map .pennant .banner { box-shadow: 0 6px 18px rgb(0 0 0 / 0.55); }
-  .map .pennant b { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: rgb(13 13 12 / 0.78); padding: 2px 8px; }
-  @container (max-width: 560px) { .map .pennant b { display: none; } }
   .none { color: var(--muted); font-style: italic; }
   .links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; margin-top: 40px; }
 </style>

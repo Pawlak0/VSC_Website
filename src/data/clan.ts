@@ -97,7 +97,12 @@ export type Flokkr = {
   loreTitle?: string;
   lore: string[];
   gallery: GalleryImage[];
+  /** Where its banner stands on the map of the Jarldom; see Spot. */
+  mapAt?: Spot;
 };
+
+/** A place on the map of the Jarldom, in percent of the map's width (x) and height (y) from its top left corner. */
+export type Spot = { x: number; y: number };
 
 export type Fylki = {
   slug: string;
@@ -117,8 +122,8 @@ export type Fylki = {
   gallery: GalleryImage[];
   /** For a Fylki that grew out of a Flokkr: its old page, e.g. /fylki/nordmorr/tryggr/, which now forwards here (astro.config.mjs). */
   movedFrom?: string;
-  /** Where its banner stands on the map of the Jarldom, in percent of the map's width and height. */
-  mapAt?: { x: number; y: number };
+  /** Where its banner stands on the map of the Jarldom. */
+  mapAt?: Spot;
 };
 
 /** What each LS role means, shown on every Fylki and Flokkr page. */
@@ -137,6 +142,7 @@ const leadership = (ls?: Partial<FylkiLeadership>): FylkiLeadership => ({
   hirdmenn: named(ls?.hirdmenn),
 });
 const photosOf = (list?: GalleryImage[]) => (list ?? []).filter((g) => g?.src);
+const spot = (s?: Partial<Spot>): Spot | undefined => (Number.isFinite(s?.x) && Number.isFinite(s?.y) ? { x: s!.x!, y: s!.y! } : undefined);
 
 // Kept in fylki.json, which the site panel at /admin/ edits. A field the panel leaves out counts as empty,
 // and a row added without a name or picture is skipped.
@@ -162,13 +168,14 @@ export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
         loreTitle: k.loreTitle || undefined,
         lore: (k.lore ?? []).filter(Boolean),
         gallery: photosOf(k.gallery),
+        mapAt: spot(k.mapAt),
       })),
     ls: leadership(f.ls),
     loreTitle: f.loreTitle || undefined,
     lore: (f.lore ?? []).filter(Boolean),
     gallery: photosOf(f.gallery),
     movedFrom: f.movedFrom || undefined,
-    mapAt: Number.isFinite(f.mapAt?.x) && Number.isFinite(f.mapAt?.y) ? { x: f.mapAt!.x, y: f.mapAt!.y } : undefined,
+    mapAt: spot(f.mapAt),
   }));
 
 /** Whether a Flokkr has enough about it for a page of its own. */
@@ -267,8 +274,10 @@ export type Video = {
 
 export const videos = (videoList as Video[]).filter((v) => v?.url);
 
-/** A post on the News page. */
+/** A post on the News page; each one also has a page of its own at /news/<id>/. */
 export type Post = {
+  /** Made from the date and title, e.g. 2026-10-20-tryggr-takes-the-field. */
+  id: string;
   title: string;
   /** e.g. 2026-10-20; the newest post comes first. */
   date: string;
@@ -278,23 +287,78 @@ export type Post = {
   picture?: string;
 };
 
+/** How big a banner stands on the map: Flokkr are small, Fylki normal, the clan's own banner big. */
+export type PinSize = 'small' | 'normal' | 'big';
+
+/** Anything else on the map: an allied clan, a castle, a battlefield. A marker with a link opens it. */
+export type Marker = {
+  name: string;
+  /** Path under /public, e.g. /img/fylki/allies.png, like a Fylki banner. */
+  banner?: string;
+  link?: string;
+  size: PinSize;
+  at: Spot;
+};
+
+/** A name written on the map itself, such as a sea or a land, in the site's lettering so Old Norse names come out right. */
+export type MapLabel = {
+  text: string;
+  size: PinSize;
+  /** Degrees, clockwise; 0 is level. */
+  tilt: number;
+  /** Bone letters for a dark sea; otherwise dark ink. */
+  light: boolean;
+  at: Spot;
+};
+
 // Pages that are not on the site until they are turned on in the site panel (pages.json): News, and the map of the
-// Jarldom with each Fylki's banner on its land (`mapAt` in fylki.json). The map itself is a picture in /img/fylki/.
-type ExtraPages = { news?: { on?: boolean; posts?: Partial<Post>[] }; map?: { on?: boolean; picture?: string; intro?: string } };
+// Jarldom. On the map stand the clan's banner (`clanAt`), each Fylki and Flokkr placed on it (`mapAt` in fylki.json)
+// and any other markers, and names written on the map. The map itself is a picture in /img/fylki/.
+type ExtraPages = {
+  news?: { on?: boolean; posts?: Partial<Post>[] };
+  map?: {
+    on?: boolean;
+    picture?: string;
+    intro?: string;
+    names?: boolean;
+    clanAt?: Spot;
+    markers?: Partial<Marker>[];
+    labels?: Partial<MapLabel>[];
+  };
+};
 const extra = extraPages as ExtraPages;
 
 export const news = {
   on: Boolean(extra.news?.on),
   posts: (extra.news?.posts ?? [])
     .filter((p) => p?.title)
-    .map((p): Post => ({ title: p.title!, date: p.date ?? '', text: (p.text ?? []).filter(Boolean), picture: p.picture || undefined }))
-    .sort((a, b) => b.date.localeCompare(a.date)),
+    .map(
+      (p): Post => ({
+        id: pageSlug(`${p.date ?? ''} ${p.title}`),
+        title: p.title!,
+        date: p.date ?? '',
+        text: (p.text ?? []).filter(Boolean),
+        picture: p.picture || undefined,
+      }),
+    )
+    .sort((a, b) => b.date.localeCompare(a.date))
+    // Two posts with the same date and title would share a page.
+    .filter((p, i, all) => all.findIndex((o) => o.id === p.id) === i),
 };
 
 export const jarldomMap = {
   on: Boolean(extra.map?.on),
   picture: extra.map?.picture || undefined,
   intro: extra.map?.intro || undefined,
+  /** Names under the banners; on a small screen they are left out anyway. */
+  names: extra.map?.names !== false,
+  clanAt: spot(extra.map?.clanAt),
+  markers: (extra.map?.markers ?? [])
+    .filter((m) => m?.name && spot(m.at))
+    .map((m): Marker => ({ name: m.name!, banner: m.banner || undefined, link: m.link || undefined, size: m.size ?? 'normal', at: spot(m.at)! })),
+  labels: (extra.map?.labels ?? [])
+    .filter((l) => l?.text?.trim() && spot(l.at))
+    .map((l): MapLabel => ({ text: l.text!.trim(), size: l.size ?? 'normal', tilt: Number(l.tilt) || 0, light: Boolean(l.light), at: spot(l.at)! })),
 };
 
 /** Members who stream or make videos. The Creators block stays hidden while the list is empty. */

@@ -10,6 +10,9 @@ type Photo = { src: string; alt: string; size?: Size; home?: boolean };
 type Video = { url: string; title?: string; by?: string; poster?: string; home?: boolean };
 type Member = { name: string; title?: string; portrait?: string };
 type Role = 'leaders' | 'thegns' | 'merkismadr' | 'hirdmenn';
+/** A place on the map of the Jarldom, in percent of the map's width and height from its top left corner. */
+type Spot = { x: number; y: number };
+type PinSize = 'small' | 'normal' | 'big';
 /** A Flokkr has every field of a Fylki apart from its own Flokkr, so one that grows can become a Fylki as it is. */
 type Flokkr = {
   name: string;
@@ -21,19 +24,37 @@ type Flokkr = {
   loreTitle?: string;
   lore?: string[];
   gallery?: Photo[];
+  /** Where its banner stands on the map of the Jarldom. */
+  mapAt?: Spot;
 };
 type Fylki = Flokkr & {
   flokkr?: Flokkr[];
   /** For a Fylki that was a Flokkr: its old page, which the site forwards here. */
   movedFrom?: string;
-  /** Where its banner stands on the map of the Jarldom, in percent of the map's width and height. */
-  mapAt?: { x: number; y: number };
 };
 type Post = { title: string; date: string; text?: string[]; picture?: string };
+/** Any other banner on the map: an ally, a castle, a battlefield. */
+type Marker = { name: string; banner?: string; link?: string; size?: PinSize; at: Spot };
+/** A name written on the map, such as a sea or a land. */
+type MapLabel = { text: string; size?: PinSize; tilt?: number; light?: boolean; at: Spot };
 /** Pages that stay off the site until they are turned on. */
-type Pages = { news: { on?: boolean; posts: Post[] }; map: { on?: boolean; picture?: string; intro?: string } };
+type Pages = {
+  news: { on?: boolean; posts: Post[] };
+  map: {
+    on?: boolean;
+    picture?: string;
+    intro?: string;
+    /** false hides the names under the banners. */
+    names?: boolean;
+    clanAt?: Spot;
+    markers?: Marker[];
+    labels?: MapLabel[];
+  };
+};
 type Data = { photos: Photo[]; videos: Video[]; fylki: Fylki[]; pages: Pages };
 type Key = keyof Data;
+type Tab = 'photos' | 'videos' | 'fylki' | 'news' | 'map';
+const TABS: Tab[] = ['photos', 'videos', 'fylki', 'news', 'map'];
 
 const FILES: Record<Key, string> = {
   photos: 'src/data/photos.json',
@@ -104,7 +125,7 @@ const uploads = new Map<string, Blob>();
 const previews = new Map<string, string>();
 /** Built tiles of the gallery photos, from /admin/thumbs.json. */
 let thumbs: Record<string, string> = {};
-let tab: Key = (recall(TAB_KEY, 'session') as Key) || 'photos';
+let tab: Tab = TABS.find((t) => t === recall(TAB_KEY, 'session')) ?? 'photos';
 let fylkiIndex = 0;
 /** The Flokkr of that Fylki open in the form, or null for the Fylki itself. */
 let flokkrIndex: number | null = null;
@@ -328,6 +349,7 @@ function pictures(d: Data): Set<string> {
   }
   d.pages?.news?.posts?.forEach((p) => add(p.picture));
   add(d.pages?.map?.picture);
+  d.pages?.map?.markers?.forEach((m) => add(m.banner));
   return out;
 }
 
@@ -629,6 +651,7 @@ function promote(k: Flokkr, parent: Fylki) {
     loreTitle: k.loreTitle,
     lore: k.lore,
     gallery: k.gallery,
+    mapAt: k.mapAt,
     movedFrom: hasPage(k) ? `/fylki/${slugOf(parent)}/${slug}/` : undefined,
   });
   fylkiIndex = data.fylki.length - 1;
@@ -829,7 +852,15 @@ function fylkiView() {
   );
 }
 
-// ---------- pages that can be turned on ----------
+// ---------- News ----------
+
+/** A post's page on the site, as src/data/clan.ts names it. */
+const postId = (p: Post) => pageSlug(`${p.date ?? ''} ${p.title}`);
+/** Whether a post is on the site already: saved, with News turned on. */
+function published(p: Post) {
+  const live = JSON.parse(saved.pages) as Pages;
+  return !!live.news?.on && live.news.posts.some((q) => q.title && postId(q) === postId(p));
+}
 
 function postCard(list: Post[], i: number, redraw: () => void) {
   const p = list[i];
@@ -861,15 +892,24 @@ function postCard(list: Post[], i: number, redraw: () => void) {
       { class: 'fields' },
       h('div', { class: 'row' }, field('Title', input(p, 'title', { required: true, placeholder: 'e.g. Tryggr takes the field' })), field('Date', input(p, 'date', { type: 'date', required: true }))),
       field('Text', sagaInput(p, 6, 'text')),
-      h('div', { class: 'tools' }, removeButton(list, i, redraw, 'post')),
+      h(
+        'div',
+        { class: 'tools' },
+        removeButton(list, i, redraw, 'post'),
+        published(p) ? h('a', { class: 'textlink', href: `/news/${postId(p)}/`, target: '_blank', rel: 'noopener' }, 'Open on the site') : null,
+      ),
     ),
   );
 }
 
-function newsBox(news: Pages['news']) {
+function newsView() {
+  const news = data.pages.news;
+  const count = h('p', { class: 'meta' });
   const list = h('div', { class: 'posts' });
-  const redraw = () =>
+  const redraw = () => {
+    count.textContent = `${news.posts.length} post${news.posts.length === 1 ? '' : 's'}${news.on ? '' : '. News is off, so none of them is on the site yet.'}`;
     list.replaceChildren(...(news.posts.length ? news.posts.map((_, i) => postCard(news.posts, i, redraw)) : [h('p', { class: 'meta' }, 'No posts yet.')]));
+  };
   redraw();
   const add = () => {
     news.posts.unshift({ title: '', date: new Date().toISOString().slice(0, 10), text: [] });
@@ -878,71 +918,234 @@ function newsBox(news: Pages['news']) {
     (list.querySelector('input[data-required]') as HTMLInputElement | null)?.focus();
   };
   return h(
-    'div',
-    { class: 'page-box' },
+    'section',
+    {},
     h(
       'div',
       { class: 'bar' },
-      h('div', {}, h('h3', {}, 'News'), h('p', { class: 'meta' }, 'A page at /news/ with the newest post first. While it is off, the page does not exist.')),
-      h('div', { class: 'add' }, toggle(news, 'on', 'On the site'), h('button', { type: 'button', class: 'btn btn-gold', onclick: add }, 'Add post')),
+      h(
+        'div',
+        {},
+        h('h2', {}, 'News'),
+        h('p', {}, 'Posts on the News page, the newest first, each with a page of its own. The three newest also show on the home page. While News is off, none of it is on the site.'),
+      ),
+      h('div', { class: 'add switch' }, toggle(news, 'on', 'On the site', redraw), h('button', { type: 'button', class: 'btn btn-gold', onclick: add }, 'Add post')),
     ),
+    count,
     list,
   );
 }
 
-const keep = (n: number) => Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
+// ---------- map of the Jarldom ----------
 
-/** The map with a banner for each Fylki on it, dragged into place; a Fylki is put on or taken off with its button. */
-function mapEditor(picture: string, redraw: () => void) {
+const keep = (n: number) => Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
+const SIZES: [PinSize, string][] = [
+  ['small', 'Small'],
+  ['normal', 'Normal'],
+  ['big', 'Big'],
+];
+
+/** Everything that can stand on the map, in the order of the list beside it. */
+type Pin = { name: string; banner?: string; main?: boolean; size: PinSize; sub?: boolean; get: () => Spot | undefined; set: (s?: Spot) => void };
+function mapPins(map: Pages['map']): Pin[] {
+  const unit = (u: Flokkr, size: PinSize, fallback: string, sub = false): Pin => ({
+    name: u.name || fallback,
+    banner: u.banner,
+    size,
+    sub,
+    get: () => u.mapAt,
+    set: (s) => (s ? (u.mapAt = s) : delete u.mapAt),
+  });
+  return [
+    { name: 'The Völsung Clan', main: true, size: 'big', get: () => map.clanAt, set: (s) => (s ? (map.clanAt = s) : delete map.clanAt) },
+    ...data.fylki.flatMap((f) => [unit(f, 'normal', 'New Fylki'), ...(f.flokkr ?? []).map((k) => unit(k, 'small', 'New Flokkr', true))]),
+    ...(map.markers ?? []).map((m): Pin => ({ name: m.name || 'New banner', banner: m.banner, size: m.size ?? 'normal', get: () => m.at, set: (s) => s && (m.at = s) })),
+  ];
+}
+
+/** Side by side across the middle, so things put on one after another do not cover each other. */
+function freeSpot(map: Pages['map']): Spot {
+  const n = mapPins(map).filter((p) => p.get()).length + (map.labels ?? []).length;
+  return { x: 15 + ((n * 17) % 75), y: 50 };
+}
+
+/** A banner as the site shows it, with the clan's own drawn in its colours. */
+function bannerEl(pin: { banner?: string; main?: boolean }) {
+  let inside: Kid = null;
+  if (pin.main) inside = h('i', { class: 'emblem', 'aria-hidden': 'true' });
+  else if (pin.banner) {
+    const img = h('img', { alt: '' });
+    img.draggable = false;
+    showImage(img, pin.banner);
+    inside = img;
+  }
+  return h('span', { class: `banner${pin.main ? ' main' : pin.banner ? '' : ' todo'}` }, inside);
+}
+
+/** Lets `el` be dragged around the map; `grip` is the part whose middle is the point. */
+function dragOnMap(el: HTMLElement, grip: HTMLElement, stage: HTMLElement, get: () => Spot, set: (s: Spot) => void) {
+  const place = () => ((el.style.left = `${get().x}%`), (el.style.top = `${get().y}%`));
+  place();
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    // Where it was grabbed, so it does not jump under the pointer.
+    const r = grip.getBoundingClientRect();
+    const dx = e.clientX - (r.left + r.width / 2);
+    const dy = e.clientY - (r.top + r.height / 2);
+    const drag = (ev: PointerEvent) => {
+      const s = stage.getBoundingClientRect();
+      set({ x: keep(((ev.clientX - dx - s.left) / s.width) * 100), y: keep(((ev.clientY - dy - s.top) / s.height) * 100) });
+      place();
+    };
+    el.addEventListener('pointermove', drag);
+    el.addEventListener('lostpointercapture', () => (el.removeEventListener('pointermove', drag), changed()), { once: true });
+  });
+}
+
+/** The map as the site shows it, with everything on it dragged into place. Returns it with a function that redraws it. */
+function mapStage(map: Pages['map']) {
   const img = h('img', { alt: '' });
   img.draggable = false;
-  showImage(img, picture);
-  const stage = h('div', { class: 'map-stage' }, img);
-  for (const f of data.fylki.filter((x) => x.mapAt)) {
-    const flag = h('img', { alt: '' });
-    flag.draggable = false;
-    showImage(flag, f.banner);
-    const pin = h('div', { class: 'map-pin', title: `Drag ${f.name || 'this Fylki'} onto its land` }, h('span', { class: 'banner-pic' }, f.banner ? flag : null), h('b', {}, f.name || 'New Fylki'));
-    const place = () => ((pin.style.left = `${f.mapAt!.x}%`), (pin.style.top = `${f.mapAt!.y}%`));
-    place();
-    pin.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      pin.setPointerCapture(e.pointerId);
-      // Where on the banner it was grabbed, so it does not jump under the pointer.
-      const r = pin.querySelector('.banner-pic')!.getBoundingClientRect();
-      const dx = e.clientX - (r.left + r.width / 2);
-      const dy = e.clientY - (r.top + r.height / 2);
-      const drag = (ev: PointerEvent) => {
-        const s = stage.getBoundingClientRect();
-        f.mapAt = { x: keep(((ev.clientX - dx - s.left) / s.width) * 100), y: keep(((ev.clientY - dy - s.top) / s.height) * 100) };
-        place();
-      };
-      pin.addEventListener('pointermove', drag);
-      pin.addEventListener('pointerup', () => (pin.removeEventListener('pointermove', drag), changed()), { once: true });
+  showImage(img, map.picture);
+  const stage = h('div', { class: 'jarldom map-stage' });
+  const draw = () => {
+    stage.classList.toggle('nameless', map.names === false);
+    const labels = (map.labels ?? []).map((l) => {
+      const el = h('span', { class: `map-label ${l.size ?? 'normal'}${l.light ? ' light' : ''}`, title: 'Drag this name into place' }, l.text || 'New name');
+      el.style.setProperty('--tilt', `${l.tilt ?? 0}deg`);
+      dragOnMap(el, el, stage, () => l.at, (s) => (l.at = s));
+      return el;
     });
-    stage.append(pin);
-  }
+    const pins = mapPins(map)
+      .filter((p) => p.get())
+      .map((p) => {
+        const banner = bannerEl(p);
+        const el = h('div', { class: `pennant ${p.size} map-pin`, title: `Drag ${p.name} onto its land` }, banner, h('b', {}, h('span', {}, p.name)));
+        dragOnMap(el, banner, stage, () => p.get()!, p.set);
+        return el;
+      });
+    stage.replaceChildren(img, ...labels, ...pins);
+  };
+  draw();
+  return { stage, draw };
+}
+
+/** The clan, every Fylki and its Flokkr, each put on the map or taken off with its button. */
+function pinList(map: Pages['map'], redraw: () => void) {
+  const rows = mapPins(map)
+    .slice(0, 1 + units(data).length)
+    .map((p) => {
+      const on = !!p.get();
+      return h(
+        'div',
+        { class: `pin-row${p.sub ? ' sub' : ''}` },
+        bannerEl(p),
+        h('span', {}, p.name),
+        h(
+          'button',
+          { type: 'button', title: on ? `Take ${p.name} off the map` : `Put ${p.name} on the map`, onclick: () => (p.set(on ? undefined : freeSpot(map)), changed(), redraw()) },
+          on ? 'Take off' : 'Put on',
+        ),
+      );
+    });
+  return h('div', { class: 'pin-list' }, h('h4', {}, 'Banners'), ...rows);
+}
+
+function markerCard(list: Marker[], i: number, redraw: () => void, drawStage: () => void) {
+  const m = list[i];
+  const name = input(m, 'name', { required: true, placeholder: 'e.g. Our allies of the Raven Clan' });
+  name.addEventListener('input', drawStage);
+  const size = select(m, 'size', SIZES, 'normal');
+  size.addEventListener('change', drawStage);
   return h(
-    'div',
-    { class: 'map-edit' },
-    stage,
+    'article',
+    { class: 'marker-card' },
+    bannerBox(m, redraw),
     h(
       'div',
-      { class: 'tools' },
-      ...data.fylki.map((f, i) =>
-        f.mapAt
-          ? h('button', { type: 'button', onclick: () => (delete f.mapAt, changed(), redraw()) }, `Take ${f.name || 'New Fylki'} off`)
-          : // Side by side across the middle, so banners put on one after another do not cover each other.
-            h('button', { type: 'button', onclick: () => ((f.mapAt = { x: 15 + ((i * 17) % 75), y: 50 }), changed(), redraw()) }, `Put ${f.name || 'New Fylki'} on the map`),
-      ),
+      { class: 'fields' },
+      field('Name', name),
+      field('Link', input(m, 'link', { placeholder: 'https://… or /fylki/…' }), 'Optional. A click on the banner opens it.'),
+      field('Size', size),
+      h('div', { class: 'tools' }, removeButton(list, i, redraw, 'banner')),
     ),
   );
 }
 
-function mapBox(map: Pages['map']) {
-  const box = h('div', { class: 'page-box' });
-  const redraw = () =>
-    box.replaceChildren(
+function labelRow(list: MapLabel[], i: number, redraw: () => void, drawStage: () => void) {
+  const l = list[i];
+  const text = input(l, 'text', { required: true, placeholder: 'e.g. Norðrvegr' });
+  text.addEventListener('input', drawStage);
+  const size = select(l, 'size', SIZES, 'normal');
+  size.addEventListener('change', drawStage);
+  const colour = h(
+    'select',
+    {
+      value: l.light ? 'light' : 'dark',
+      onchange: (e: Event) => {
+        if ((e.target as HTMLSelectElement).value === 'light') l.light = true;
+        else delete l.light;
+        changed();
+        drawStage();
+      },
+    },
+    h('option', { value: 'dark' }, 'Dark ink'),
+    h('option', { value: 'light' }, 'Light, for a dark sea'),
+  );
+  const degrees = h('output', {}, `${l.tilt ?? 0}°`);
+  const tilt = h('input', {
+    type: 'range',
+    min: -60,
+    max: 60,
+    step: 1,
+    value: l.tilt ?? 0,
+    oninput: (e: Event) => {
+      const v = Number((e.target as HTMLInputElement).value);
+      if (v) l.tilt = v;
+      else delete l.tilt;
+      degrees.textContent = `${v}°`;
+      changed();
+      drawStage();
+    },
+  });
+  return h(
+    'div',
+    { class: 'label-row' },
+    field('Name', text),
+    field('Size', size),
+    field('Colour', colour),
+    h('label', { class: 'field tilt' }, h('span', { class: 'label' }, 'Tilt ', degrees), tilt),
+    h('div', { class: 'tools' }, removeButton(list, i, redraw, 'name')),
+  );
+}
+
+function mapView() {
+  const map = data.pages.map;
+  const view = h('section', {});
+  const redraw = () => {
+    const { stage, draw } = mapStage(map);
+    const names = h(
+      'label',
+      { class: 'toggle' },
+      h('input', {
+        type: 'checkbox',
+        checked: map.names !== false,
+        onchange: (e: Event) => {
+          if ((e.target as HTMLInputElement).checked) delete map.names;
+          else map.names = false;
+          changed();
+          draw();
+        },
+      }),
+      h('span', {}, 'Names under the banners'),
+    );
+    // Left out of the file until something is added.
+    const markers = map.markers ?? [];
+    const labels = map.labels ?? [];
+    const addMarker = () => ((map.markers ??= []).push({ name: '', size: 'normal', at: freeSpot(map) }), changed(), redraw());
+    const addLabel = () => ((map.labels ??= []).push({ text: '', at: freeSpot(map) }), changed(), redraw());
+    view.replaceChildren(
       ...present(
         h(
           'div',
@@ -950,50 +1153,82 @@ function mapBox(map: Pages['map']) {
           h(
             'div',
             {},
-            h('h3', {}, 'Map of the Jarldom'),
-            h('p', { class: 'meta' }, 'A page at /map/ with each Fylki’s banner on its land; a click on a banner opens the Fylki. It is also linked from the Jarldom menu and the home page.'),
+            h('h2', {}, 'Map of the Jarldom'),
+            h('p', {}, 'A page with the banners of the clan, its Fylki and Flokkr on their lands; a click on a banner opens its page. While it is on, the Jarldom menu and the home page link to it.'),
           ),
-          h('div', { class: 'add' }, toggle(map, 'on', 'On the site')),
+          h('div', { class: 'add switch' }, toggle(map, 'on', 'On the site')),
         ),
-        field('Text over the map', input(map, 'intro', { area: 2, placeholder: 'The lands of the Völsung Fylki. Click a banner to visit its Fylki.' })),
         h(
           'div',
-          { class: 'tools' },
+          { class: 'page-box' },
+          field('Text over the map', input(map, 'intro', { area: 2, placeholder: 'The lands of the Völsung Fylki. Click a banner to visit its Fylki.' })),
           h(
-            'button',
-            {
-              type: 'button',
-              class: 'btn btn-ghost',
-              onclick: () =>
-                pickFiles(false, async ([file]) => {
-                  if (!file) return;
-                  map.picture = await addPicture(file, 'map', 'jarldom-map');
-                  changed();
-                  redraw();
-                }),
-            },
-            map.picture ? 'Replace the map' : 'Upload the map',
+            'div',
+            { class: 'tools' },
+            h(
+              'button',
+              {
+                type: 'button',
+                class: 'btn btn-ghost',
+                onclick: () =>
+                  pickFiles(false, async ([file]) => {
+                    if (!file) return;
+                    map.picture = await addPicture(file, 'map', 'jarldom-map');
+                    changed();
+                    redraw();
+                  }),
+              },
+              map.picture ? 'Replace the map' : 'Upload the map',
+            ),
+            map.picture ? h('button', { type: 'button', class: 'remove', onclick: () => (delete map.picture, changed(), redraw()) }, 'Remove the map') : null,
+            map.picture ? names : null,
           ),
-          map.picture ? h('button', { type: 'button', class: 'remove', onclick: () => (delete map.picture, changed(), redraw()) }, 'Remove the map') : null,
+          map.picture ? null : h('p', { class: 'meta' }, 'No map yet. Until there is one, the page says the map is still being drawn.'),
         ),
         map.picture
-          ? h('p', { class: 'meta' }, 'Drag each banner onto its land. The banners grow and shrink with the map, as on the site.')
-          : h('p', { class: 'meta' }, 'No map yet. Until there is one, the page says the map is still being drawn.'),
-        map.picture ? mapEditor(map.picture, redraw) : null,
+          ? h(
+              'p',
+              { class: 'meta' },
+              'Drag the banners and names into place. Everything grows and shrinks with the map as on the site; on a phone the names under the banners and the small names are left out.',
+            )
+          : null,
+        map.picture ? h('div', { class: 'map-edit' }, stage, pinList(map, redraw)) : null,
+        map.picture
+          ? h(
+              'div',
+              { class: 'page-box' },
+              h(
+                'div',
+                { class: 'bar' },
+                h('div', {}, h('h3', {}, 'Other banners'), h('p', { class: 'meta' }, 'Allies, castles, battlefields: anything else with a banner. Each one goes on the map as soon as it is added.')),
+                h('button', { type: 'button', class: 'btn btn-gold', onclick: addMarker }, 'Add banner'),
+              ),
+              markers.length ? h('div', { class: 'markers' }, ...markers.map((_, i) => markerCard(markers, i, redraw, draw))) : null,
+            )
+          : null,
+        map.picture
+          ? h(
+              'div',
+              { class: 'page-box' },
+              h(
+                'div',
+                { class: 'bar' },
+                h(
+                  'div',
+                  {},
+                  h('h3', {}, 'Names on the map'),
+                  h('p', { class: 'meta' }, 'Seas, lands and places written on the map in the site’s lettering, so Old Norse names come out right. Leave them out of the picture itself.'),
+                ),
+                h('button', { type: 'button', class: 'btn btn-gold', onclick: addLabel }, 'Add a name'),
+              ),
+              ...labels.map((_, i) => labelRow(labels, i, redraw, draw)),
+            )
+          : null,
       ),
     );
+  };
   redraw();
-  return box;
-}
-
-function pagesView() {
-  return h(
-    'section',
-    {},
-    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Pages'), h('p', {}, 'Pages that stay off the site until you turn them on. One that is on shows in the menu.'))),
-    newsBox(data.pages.news),
-    mapBox(data.pages.map),
-  );
+  return view;
 }
 
 // ---------- saving ----------
@@ -1034,7 +1269,9 @@ function missing(): HTMLElement | null {
     data.photos.some((p) => !p.alt?.trim() || !p.src) ||
     data.videos.some((v) => !v.url?.trim()) ||
     units(data).some((u) => !u.name?.trim() || ROLES.some(([r]) => u.ls?.[r]?.some((m) => !m.name?.trim())) || u.gallery?.some((p) => !p.alt?.trim())) ||
-    data.pages.news.posts.some((p) => !p.title?.trim());
+    data.pages.news.posts.some((p) => !p.title?.trim()) ||
+    (data.pages.map.markers ?? []).some((m) => !m.name?.trim()) ||
+    (data.pages.map.labels ?? []).some((l) => !l.text?.trim());
   return bad ? document.body : null;
 }
 
@@ -1050,7 +1287,7 @@ async function save() {
   const first = missing();
   if (first) {
     if (first !== document.body) first.focus();
-    return message('Some required fields are empty: every photo needs a description, every video a link, every Fylki, Flokkr and member a name, and every post a title. Empty ones are marked red, or on another tab.', 'error');
+    return message('Some required fields are empty: every photo needs a description, every video a link, every Fylki, Flokkr, member and banner on the map a name, every post a title, and every name on the map its text. Empty ones are marked red, or on another tab.', 'error');
   }
   const { files, added, removed } = pending();
   busy = true;
@@ -1112,8 +1349,8 @@ function setCols(n: string) {
 function render() {
   remember(TAB_KEY, tab, 'session');
   document.querySelectorAll<HTMLButtonElement>('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-  const view = tab === 'photos' ? photosView() : tab === 'videos' ? videosView() : tab === 'fylki' ? fylkiView() : pagesView();
-  $('content').replaceChildren(view);
+  const views: Record<Tab, () => HTMLElement> = { photos: photosView, videos: videosView, fylki: fylkiView, news: newsView, map: mapView };
+  $('content').replaceChildren(views[tab]());
 }
 
 async function load() {
@@ -1161,7 +1398,7 @@ export async function start() {
   $('tabs').addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest('button');
     if (!b?.dataset.tab) return;
-    tab = b.dataset.tab as Key;
+    tab = b.dataset.tab as Tab;
     render();
   });
   setCols(recall(COLS_KEY) ?? '4');

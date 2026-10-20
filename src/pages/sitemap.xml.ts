@@ -6,7 +6,7 @@ export const GET: APIRoute = ({ site }) => {
   const pages = [
     '/',
     '/media/',
-    ...(news.on ? ['/news/'] : []),
+    ...(news.on ? ['/news/', ...news.posts.map((p) => `/news/${p.id}/`)] : []),
     ...(jarldomMap.on ? ['/map/'] : []),
     ...fylki.flatMap((f) => [`/fylki/${f.slug}/`, ...f.flokkr.filter(hasPage).map((k) => `/fylki/${f.slug}/${k.slug}/`)]),
   ];
