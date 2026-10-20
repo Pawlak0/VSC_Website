@@ -131,7 +131,7 @@ export type Fylki = {
   flokkr: Flokkr[];
   description: string;
   ls: FylkiLeadership;
-  /** Heading over the saga, e.g. "The Royal House of the North". Optional. */
+  /** Heading over the saga, e.g. "The People of Norðmǿrr". Optional. */
   loreTitle?: string;
   /** The saga of the Fylki, one string per paragraph. */
   lore: string[];

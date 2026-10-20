@@ -831,7 +831,7 @@ function unitForm(u: Fylki, parent?: Fylki) {
         h(
           'div',
           { class: 'panel-box' },
-          field('Saga title', input(u, 'loreTitle', { placeholder: parent ? 'e.g. The Sworn Warband of Norðmǿrr Fylki' : 'e.g. The Royal House of the North' })),
+          field('Saga title', input(u, 'loreTitle', { placeholder: parent ? 'e.g. The Sworn Warband of Norðmǿrr Fylki' : 'e.g. The People of Norðmǿrr' })),
           field('Saga', sagaInput(u, parent ? 10 : 16), parent ? undefined : 'Past four paragraphs the rest folds under “Read the whole saga”.'),
         ),
         parent ? null : h('h3', {}, 'Flokkr'),
