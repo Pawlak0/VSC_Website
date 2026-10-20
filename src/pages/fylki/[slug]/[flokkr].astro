@@ -2,9 +2,13 @@
 import Base from '../../../layouts/Base.astro';
 import FylkiBanner from '../../../components/FylkiBanner.astro';
 import Saga from '../../../components/Saga.astro';
+import Leadership from '../../../components/Leadership.astro';
+import Gallery from '../../../components/Gallery.astro';
+import Lightbox from '../../../components/Lightbox.astro';
 import { DISCORD_URL, fylki, hasPage, type Flokkr, type Fylki } from '../../../data/clan';
 
-// A page for each Flokkr that has a description or a saga; the others are only named on their Fylki's page.
+// A page for each Flokkr that has a description, saga, LS or photos; the others are only named on their Fylki's page.
+// The sections follow the Fylki page, so a Flokkr that becomes a Fylki looks the same with more on it.
 export function getStaticPaths() {
   return fylki.flatMap((f) =>
     f.flokkr.filter(hasPage).map((k) => ({ params: { slug: f.slug, flokkr: k.slug }, props: { fylki: f, flokkr: k } })),
@@ -29,11 +33,31 @@ const others = f.flokkr.filter((o) => o.slug !== k.slug && hasPage(o));
 
   <section class="band">
     <div class="wrap">
-      <Saga eyebrow="Saga" title={k.loreTitle ?? `The lore of ${k.name}`} paragraphs={k.lore} empty={`The saga of ${k.name} is yet to be written.`} />
+      <Leadership name={k.name} unit="Flokkr" ls={k.ls} />
     </div>
   </section>
 
   <section>
+    <div class="wrap">
+      <Saga eyebrow="Saga" title={k.loreTitle ?? `The lore of ${k.name}`} paragraphs={k.lore} empty={`The saga of ${k.name} is yet to be written.`} />
+    </div>
+  </section>
+
+  {
+    k.gallery.length > 0 && (
+      <section class="band">
+        <div class="wrap">
+          <div class="head" data-stagger>
+            <p class="eyebrow">Media</p>
+            <h2>{k.name} in battle</h2>
+          </div>
+          <Gallery items={k.gallery} />
+        </div>
+      </section>
+    )
+  }
+
+  <section class:list={[{ band: k.gallery.length === 0 }]}>
     <div class="wrap others" data-reveal>
       <p class="eyebrow">More of {f.name}</p>
       <div class="links">
@@ -44,6 +68,7 @@ const others = f.flokkr.filter((o) => o.slug !== k.slug && hasPage(o));
       <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
     </div>
   </section>
+  {k.gallery.length > 0 && <Lightbox />}
 </Base>
 
 <style>

@@ -1,0 +1,56 @@
+---
+import { lsRoles, type FylkiLeadership } from '../data/clan';
+
+interface Props {
+  name: string;
+  unit: 'Fylki' | 'Flokkr';
+  ls: FylkiLeadership;
+}
+
+const { name, unit, ls } = Astro.props;
+---
+
+<div class="head" data-stagger>
+  <p class="eyebrow">Leadership</p>
+  <h2>Who leads {name}</h2>
+</div>
+<div class="ls" data-reveal>
+  {
+    lsRoles(unit).map((role) => (
+      <div class="role">
+        <header>
+          <h3>{role.name}</h3>
+          <p>{role.text}</p>
+        </header>
+        <div class="members">
+          {ls[role.key].length ? (
+            ls[role.key].map((m) => (
+              <div class="member">
+                {m.portrait ? <img src={m.portrait} alt={`Portrait of ${m.name}`} loading="lazy" /> : <span class="emblem" aria-hidden="true" />}
+                <b>{m.name}</b>
+                {m.title && <span>{m.title}</span>}
+              </div>
+            ))
+          ) : (
+            <p class="tba">To be announced</p>
+          )}
+        </div>
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .ls { display: grid; gap: 2px; background: var(--line); border: 1px solid var(--line); }
+  .role { background: var(--pitch); display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; padding: 22px; }
+  .role header { display: grid; gap: 4px; align-content: start; }
+  .role header p { color: var(--muted); font-size: 16px; }
+  .members { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
+  .member { display: grid; gap: 6px; justify-items: start; align-content: start; }
+  .member img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border: 1px solid var(--line); }
+  .member .emblem { width: 28px; }
+  .member b { font-family: var(--f-display); font-size: 15px; letter-spacing: 0.06em; }
+  .member span:not(.emblem) { color: var(--muted); font-size: 15px; }
+  .tba { color: var(--muted); font-style: italic; }
+  @media (max-width: 820px) { .role { grid-template-columns: 1fr; gap: 14px; } }
+</style>
