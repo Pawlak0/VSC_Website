@@ -91,7 +91,11 @@ const platform = (url: string) => {
                   <img src={p.image || `https://i.ytimg.com/vi/${p.video}/hqdefault.jpg`} alt={p.alt ?? ''} loading="lazy" />
                 </a>
               ) : (
-                p.image && <img class="media" src={p.image} alt={p.alt ?? ''} loading="lazy" />
+                p.image && (
+                  <button type="button" class="media zoom" data-src={p.image} aria-label={`Enlarge the picture: ${p.alt || p.name}`}>
+                    <img src={p.image} alt={p.alt ?? ''} loading="lazy" />
+                  </button>
+                )
               )}
             </div>
           ))
@@ -464,6 +468,25 @@ const platform = (url: string) => {
   .pillar + .pillar::before { content: ""; position: absolute; inset: 0 auto 0 -22px; border-left: 1px solid color-mix(in srgb, var(--on-sand) 25%, transparent); }
   .pillar p { font-size: 18px; }
   .pillar .media { display: block; width: 100%; aspect-ratio: 16 / 10; margin-top: 10px; border: 0; object-fit: cover; background: var(--pitch); }
+  /* A picture opens full size on a click; it leans in a little under the pointer. */
+  .pillar .zoom { position: relative; padding: 0; cursor: zoom-in; overflow: hidden; }
+  .pillar .zoom img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s ease, filter 0.5s ease; }
+  .pillar .zoom::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    width: 34px;
+    height: 34px;
+    background: color-mix(in srgb, var(--pitch) 75%, transparent) center / 18px no-repeat
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c49c55' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6'/%3E%3C/svg%3E");
+    border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .pillar .zoom:hover img, .pillar .zoom:focus-visible img { transform: scale(1.06); filter: brightness(1.08); }
+  .pillar .zoom:hover::after, .pillar .zoom:focus-visible::after { opacity: 1; transform: none; }
   .pillar .video { position: relative; }
   .pillar .video img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .pillar .video::after {
