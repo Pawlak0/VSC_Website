@@ -1,7 +1,9 @@
 // The clan's API at api.volsungclan.com: Discord sign-in for members of the Völsung Clan. The website stays static on
 // GitHub Pages and asks this Worker who is signed in. Only people on the clan's Discord server with the Völsung
 // Clansman role get in; the role is checked at sign-in, again at most an hour later while they use the site, and by
-// the hourly check, which signs out anyone who has lost it.
+// the hourly check, which signs out anyone who has lost it. It also serves the next events of the clan's Sesh calendar,
+// so the home page shows changes made between the website's hourly rebuilds.
+import { eventsBetween } from './calendar';
 import { DiscordError, exchangeCode, membership, ownMembership, revoke } from './discord';
 import { SESSION_DAYS, dueForCheck, endAllSessions, endSession, findSession, forget, freeze, publicLinks, randomToken, saveLinks, saveMember, startSession, tidy, underLimit, type Account, type Links } from './store';
 
@@ -26,6 +28,9 @@ export interface Env {
   SITE_WORKFLOW: string;
   /** A GitHub token that may only start that repository's workflows; without it the hourly rebuild is skipped. */
   SITE_REBUILD_TOKEN?: string;
+  /** The Sesh calendar feed (.ics), the same secret the website builds with. Without it GET /events answers 503 and
+   * the home page keeps the events it was built with. */
+  SESH_ICS_URL?: string;
 }
 
 // The session cookie belongs to this API alone and scripts on the page cannot read it (__Host-, HttpOnly). The hint
@@ -35,6 +40,10 @@ const LOGIN = '__Host-vsc_login';
 const HINT = 'vsc_signed_in';
 const RECHECK = 60 * 60 * 1000;
 const SIGN_INS_PER_MINUTE = 20;
+// The calendar is read from Sesh at most once every two minutes; the home page shows the next six events, counting
+// those that started up to two hours ago, as it does when it is built.
+const EVENTS_FRESH_SECONDS = 120;
+const EVENTS_SHOWN = 6;
 
 const cookie = (name: string, value: string, maxAge: number, more = '') => `${name}=${value}; Path=/; Max-Age=${maxAge}; Secure; SameSite=Lax${more}`;
 const sessionCookie = (token: string, maxAge: number) => cookie(SESSION, token, maxAge, '; HttpOnly');
@@ -213,6 +222,29 @@ async function deleteAccount(req: Request, env: Env): Promise<Response> {
   return respond(env, null, 204, signedOut(env));
 }
 
+/** The next events on the clan's Sesh calendar, at most two minutes old. Only what the home page shows goes out: the
+ * time, the name and the first line of the description; the feed's address stays a secret. */
+async function upcomingEvents(env: Env, ctx: ExecutionContext): Promise<Response> {
+  if (!env.SESH_ICS_URL) return respond(env, { error: 'no-calendar' }, 503);
+  const key = new Request(`${env.API}/events`);
+  let body = await (await caches.default.match(key))?.text();
+  if (!body) {
+    const res = await fetch(env.SESH_ICS_URL, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) {
+      console.warn('Calendar not read: Sesh answered', res.status);
+      return respond(env, { error: 'calendar' }, 502);
+    }
+    const now = Date.now();
+    const events = eventsBetween(await res.text(), new Date(now - 2 * 3_600_000), new Date(now + 30 * 86_400_000))
+      .slice(0, EVENTS_SHOWN)
+      .map((e) => ({ start: e.start.toISOString(), name: e.name, text: e.text }));
+    body = JSON.stringify({ events });
+    ctx.waitUntil(caches.default.put(key, new Response(body, { headers: { 'Cache-Control': `max-age=${EVENTS_FRESH_SECONDS}` } })));
+  }
+  const headers = { ...corsHeaders(env), 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', 'X-Content-Type-Options': 'nosniff' };
+  return new Response(body, { headers });
+}
+
 /** Asks GitHub to rebuild the website, which reads the Fylki members, the Discord counts and the calendar afresh.
  * GitHub's own hourly schedule for that skips most hours; this cron does not. */
 async function rebuildSite(env: Env): Promise<void> {
@@ -260,6 +292,8 @@ export default {
           return await deleteAccount(req, env);
         case 'POST /me/links':
           return await setLinks(req, env);
+        case 'GET /events':
+          return await upcomingEvents(env, ctx);
         case 'GET /links':
           return respond(env, await publicLinks(env.DB));
       }

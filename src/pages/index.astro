@@ -23,6 +23,10 @@ const upcoming = calendar?.length
   ? calendar.slice(0, 6).map((e) => ({ ...e, text: known(e.name)?.text ?? e.text, monthly: known(e.name)?.monthly }))
   : null;
 
+// The page asks the API for the calendar again when it opens (see the script below), so it can mark the clan's known
+// events the same way.
+const knownEvents = JSON.stringify(Object.fromEntries(events.map((e) => [e.name.toLowerCase(), { text: e.text, monthly: e.monthly }])));
+
 const homeVideos = (await videoCards(videos)).filter((v) => v.home);
 
 const { hero, about, week, media, join } = texts;
@@ -108,7 +112,7 @@ const platform = (url: string) => {
       </div>
       {
         upcoming ? (
-          <ol class="upcoming" data-stagger>
+          <ol class="upcoming" data-stagger data-known={knownEvents}>
             {upcoming.map((e) => (
               <li class:list={['ev', { monthly: e.monthly }]}>
                 <time class="when" datetime={e.start.toISOString()}>
@@ -251,6 +255,7 @@ const platform = (url: string) => {
 
 <script>
   import { inviteApi } from '../lib/discord';
+  import { API_URL } from '../lib/members';
 
   // Refresh the Discord counts in the hero. If Discord does not answer, the numbers from the build stay.
   const live = document.querySelector<HTMLAnchorElement>('.live[data-invite]');
@@ -271,16 +276,60 @@ const platform = (url: string) => {
   // Calendar dates and times are written in the clan's time zone; show them in the visitor's own.
   const local = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-GB', o).format(d);
   const parts: Record<string, Intl.DateTimeFormatOptions> = { weekday: { weekday: 'short' }, day: { day: 'numeric' }, month: { month: 'short' } };
-  const whens = document.querySelectorAll<HTMLTimeElement>('.upcoming .when');
-  whens.forEach((t) => {
-    const d = new Date(t.dateTime);
-    t.querySelectorAll<HTMLElement>('[data-part]').forEach((p) => (p.textContent = local(d, parts[p.dataset.part ?? ''])));
-  });
-  document.querySelectorAll<HTMLElement>('.upcoming .clock').forEach((c) => {
-    c.textContent = local(new Date(c.dataset.start ?? ''), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-  });
-  const tz = document.querySelector('[data-tz]');
-  if (tz && whens.length) tz.textContent = 'Times in your time zone';
+  function localTimes() {
+    const whens = document.querySelectorAll<HTMLTimeElement>('.upcoming .when');
+    whens.forEach((t) => {
+      const d = new Date(t.dateTime);
+      t.querySelectorAll<HTMLElement>('[data-part]').forEach((p) => (p.textContent = local(d, parts[p.dataset.part ?? ''])));
+    });
+    document.querySelectorAll<HTMLElement>('.upcoming .clock').forEach((c) => {
+      c.textContent = local(new Date(c.dataset.start ?? ''), { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    });
+    const tz = document.querySelector('[data-tz]');
+    if (tz && whens.length) tz.textContent = 'Times in your time zone';
+  }
+  localTimes();
+
+  // The page is rebuilt every hour, but the API reads the calendar every two minutes, so an event added, moved or
+  // cancelled in between shows too. Each card is a copy of one the page was built with; if the API does not answer,
+  // the built ones stay.
+  const list = document.querySelector<HTMLOListElement>('.upcoming');
+  const card = list?.querySelector('li');
+  if (list && card) {
+    type Fresh = { start: string; name: string; text: string };
+    const known: Record<string, { text?: string; monthly?: boolean }> = JSON.parse(list.dataset.known ?? '{}');
+    fetch(`${API_URL}/events`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { events?: Fresh[] } | null) => {
+        const fresh = d?.events?.filter((e) => e.name && !Number.isNaN(Date.parse(e.start)));
+        if (!fresh?.length) return;
+        list.replaceChildren(
+          ...fresh.map((e, i) => {
+            const li = card.cloneNode(true) as HTMLLIElement;
+            const k = known[e.name.toLowerCase()];
+            li.classList.toggle('monthly', Boolean(k?.monthly));
+            li.style.setProperty('--i', String(i));
+            li.querySelector('time')!.dateTime = e.start;
+            li.querySelector<HTMLElement>('.clock')!.dataset.start = e.start;
+            const h3 = li.querySelector('h3')!;
+            h3.textContent = e.name;
+            const text = k?.text ?? e.text;
+            let p = li.querySelector('p');
+            if (text && !p) {
+              // Copied from the heading, so the page's styles reach the new line too.
+              p = document.createElement('p');
+              for (const a of h3.attributes) if (a.name.startsWith('data-astro-cid')) p.setAttribute(a.name, a.value);
+              h3.after(p);
+            }
+            if (text) p!.textContent = text;
+            else p?.remove();
+            return li;
+          }),
+        );
+        localTimes();
+      })
+      .catch(() => {});
+  }
 
   // A pillar video loads only when it is played.
   document.querySelectorAll<HTMLAnchorElement>('.pillar .video').forEach((a) => {
