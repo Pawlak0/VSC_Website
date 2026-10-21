@@ -1,6 +1,6 @@
 ---
 import '../styles/global.css';
-import { DISCORD_URL, bannerLook, fylki, jarldomMap, news, glowOf, type BannerColors } from '../data/clan';
+import { DISCORD_URL, bannerLook, fylki, jarldomMap, news, glowOf, texts, type BannerColors } from '../data/clan';
 
 interface Props {
   title?: string;
@@ -15,13 +15,14 @@ interface Props {
 
 const {
   title,
-  description = "VSC, The Völsung Clan: a Viking clan in Mount & Blade II: Bannerlord. We fight in the game's biggest events and open-world mods like Persistent Bannerlord. EU-based and newcomer friendly.",
+  description = texts.google.description,
   image = '/img/og.jpg',
   noindex = false,
   colors,
 } = Astro.props;
-// The home page title carries the words people search for, the clan's short name VSC too; other pages lead with their own name.
-const fullTitle = title ? `${title} · The Völsung Clan` : 'The Völsung Clan (VSC) · Viking clan in Mount & Blade II: Bannerlord';
+// The home page title and the description are what Google shows, set in the site panel (Texts, Google); they carry the
+// words people search for, the clan's short name VSC too. Other pages lead with their own name.
+const fullTitle = title ? `${title} · The Völsung Clan` : texts.google.title;
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 const ogImage = new URL(image, Astro.site).toString();
 const isHome = Astro.url.pathname === '/';

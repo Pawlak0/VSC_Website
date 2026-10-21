@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import Gallery from '../components/Gallery.astro';
 import Lightbox from '../components/Lightbox.astro';
 import VideoGrid from '../components/VideoGrid.astro';
-import { DISCORD_URL, pillars, events, CLAN_TIME_ZONE, news, gallery, videos, creators, otherGames, faq } from '../data/clan';
+import { DISCORD_URL, pillars, events, CLAN_TIME_ZONE, news, gallery, videos, creators, otherGames, faq, texts } from '../data/clan';
 import { fetchCounts, inviteCode } from '../lib/discord';
 import { upcomingEvents } from '../lib/sesh';
 import { videoCards } from '../lib/videos';
@@ -25,6 +25,10 @@ const upcoming = calendar?.length
 
 const homeVideos = (await videoCards(videos)).filter((v) => v.home);
 
+const { hero, about, week, media, join } = texts;
+// A number at the start of a fact, like the 3+ of "3+ weekly events", is written in bold.
+const fact = (f: string) => f.match(/^(\d[\d.,]*\+?)\s+(.*)$/)?.slice(1) ?? [null, f];
+
 const platforms: [string, string][] = [['youtube.com', 'YouTube'], ['youtu.be', 'YouTube'], ['twitch.tv', 'Twitch'], ['tiktok.com', 'TikTok'], ['kick.com', 'Kick']];
 const platform = (url: string) => {
   const host = new URL(url).hostname.replace(/^www\./, '');
@@ -38,18 +42,25 @@ const platform = (url: string) => {
     if (moved[location.hash]) location.replace(moved[location.hash]);
   </script>
   <header class="hero" id="top">
-    <img class="bg" src="/img/hero-snow-shieldwall.webp" fetchpriority="high" alt="Painting of a Völsung shieldwall under the serpent banner in a snowy forest" />
+    {hero.picture && <img class="bg" src={hero.picture} fetchpriority="high" alt={hero.alt ?? ''} />}
     <div class="wrap" data-stagger>
-      <p class="eyebrow">Mount &amp; Blade II: Bannerlord · EU</p>
+      {hero.eyebrow && <p class="eyebrow">{hero.eyebrow}</p>}
       <h1><small>The</small>Völsung Clan</h1>
-      <p class="lede">A community of Mount &amp; Blade veterans who fight in Bannerlord's biggest events and open world mods.</p>
+      {hero.text && <p class="lede">{hero.text}</p>}
       <div class="ctas">
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
         <a class="btn btn-ghost" href="#events">{upcoming ? 'Upcoming events' : 'See the week'}</a>
       </div>
-      <div class="facts">
-        <span>English speaking</span><span><b>3+</b> weekly events</span><span><b>500+</b> players on BRE Sunday</span><span>Newcomer friendly</span>
-      </div>
+      {
+        hero.facts.length > 0 && (
+          <div class="facts">
+            {hero.facts.map((f) => {
+              const [number, rest] = fact(f);
+              return <span>{number && <><b>{number}</b> </>}{rest}</span>;
+            })}
+          </div>
+        )
+      }
       <a class="live" href={DISCORD_URL} target="_blank" rel="noopener" data-invite={invite} hidden={!counts}>
         <span class="dot" aria-hidden="true"></span>
         <span><b data-count="online">{fmt(counts?.online)}</b> online now</span>
@@ -61,9 +72,9 @@ const platform = (url: string) => {
   <section class="sand" id="about">
     <div class="wrap">
       <div class="head" data-stagger>
-        <p class="eyebrow">Who we are</p>
-        <h2>Shieldwall, bowmen and riders</h2>
-        <p>We are EU-based and newcomer friendly, offering training, guides and support in a welcoming atmosphere, backed by a strong and dedicated leadership team.</p>
+        {about.eyebrow && <p class="eyebrow">{about.eyebrow}</p>}
+        <h2>{about.title}</h2>
+        {about.text && <p>{about.text}</p>}
       </div>
       <div class="pillars" data-stagger>
         {
@@ -73,10 +84,10 @@ const platform = (url: string) => {
               <p>{p.text}</p>
               {p.video ? (
                 <a class="media video" href={`https://www.youtube.com/watch?v=${p.video}`} target="_blank" rel="noopener" data-video={p.video} aria-label={`Play video: ${p.name}`}>
-                  <img src={p.image} alt={p.alt} loading="lazy" />
+                  <img src={p.image || `https://i.ytimg.com/vi/${p.video}/hqdefault.jpg`} alt={p.alt ?? ''} loading="lazy" />
                 </a>
               ) : (
-                <img class="media" src={p.image} alt={p.alt} loading="lazy" />
+                p.image && <img class="media" src={p.image} alt={p.alt ?? ''} loading="lazy" />
               )}
             </div>
           ))
@@ -89,8 +100,8 @@ const platform = (url: string) => {
     <div class="wrap">
       <div class="head" data-stagger>
         <p class="eyebrow">{upcoming ? 'Upcoming events' : 'The Völsung week'}</p>
-        <h2>Where to find us</h2>
-        <p>{upcoming ? 'Persistent Bannerlord runs every day. These are the next events on our Discord calendar.' : 'Persistent Bannerlord runs every day. These are the fixed points.'}</p>
+        <h2>{week.title}</h2>
+        <p>{[week.text, upcoming ? 'These are the next events on our Discord calendar.' : 'These are the fixed points.'].filter(Boolean).join(' ')}</p>
       </div>
       <div class="findus" data-reveal>
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Find us on Discord</a>
@@ -147,8 +158,8 @@ const platform = (url: string) => {
   <section id="media" class="band">
     <div class="wrap">
       <div class="head" data-stagger>
-        <p class="eyebrow">Media</p>
-        <h2>A picture speaks a thousand words</h2>
+        {media.eyebrow && <p class="eyebrow">{media.eyebrow}</p>}
+        <h2>{media.title}</h2>
       </div>
       {homeVideos.length > 0 && <div class="home-videos"><VideoGrid items={homeVideos} /></div>}
       <Gallery items={gallery.filter((g) => g.home)} />
@@ -176,7 +187,7 @@ const platform = (url: string) => {
       }
       <div class="head sub-head" data-stagger>
         <p class="eyebrow">Other games</p>
-        <p>Community-led sessions you can jump into whenever you like.</p>
+        {media.gamesText && <p>{media.gamesText}</p>}
       </div>
       <div class="games" data-stagger>
         {
@@ -197,8 +208,8 @@ const platform = (url: string) => {
   <section id="faq">
     <div class="wrap">
       <div class="head" data-stagger>
-        <p class="eyebrow">Questions</p>
-        <h2>Before you join</h2>
+        {texts.faq.eyebrow && <p class="eyebrow">{texts.faq.eyebrow}</p>}
+        <h2>{texts.faq.title}</h2>
       </div>
       <div class="faq" data-stagger>
         {
@@ -214,18 +225,22 @@ const platform = (url: string) => {
   </section>
 
   <section class="join" id="join">
-    <img class="bg" src="/img/castle-muster.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" />
+    {join.picture && <img class="bg" src={join.picture} alt="" aria-hidden="true" loading="lazy" decoding="async" />}
     <div class="wrap">
       <div class="head" data-stagger>
-        <p class="eyebrow">Join today</p>
-        <h2>Think we might be right for you?</h2>
-        <p class="ink">Don't worry if you're new to multiplayer or to Bannerlord. Trainings, guides and experienced players will help you build your skills.</p>
+        {join.eyebrow && <p class="eyebrow">{join.eyebrow}</p>}
+        <h2>{join.title}</h2>
+        {join.text && <p class="ink">{join.text}</p>}
       </div>
-      <div class="steps" data-stagger>
-        <div class="step"><span class="n">Step 1</span><h3>Join the Discord</h3><p>Open the invite and say hello.</p></div>
-        <div class="step"><span class="n">Step 2</span><h3>Apply</h3><p>Post a short application in #applications using the template.</p></div>
-        <div class="step"><span class="n">Step 3</span><h3>Onboarding</h3><p>Questions go to #ask-for-help or to any member of leadership.</p></div>
-      </div>
+      {
+        join.steps.length > 0 && (
+          <div class="steps" data-stagger>
+            {join.steps.map((s, i) => (
+              <div class="step"><span class="n">Step {i + 1}</span><h3>{s.title}</h3>{s.text && <p>{s.text}</p>}</div>
+            ))}
+          </div>
+        )
+      }
       <div class="invite" data-reveal>
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
         <code>discord.gg/volsung-clan</code>
@@ -558,11 +573,11 @@ const platform = (url: string) => {
   .join img.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
   .join::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, var(--shade), color-mix(in srgb, var(--shade) 75%, transparent)); }
   .join .head p.ink { color: var(--ink); }
-  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 32px 0; }
+  .steps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 16px; margin: 32px 0; }
   .step { border-top: 2px solid var(--gold); padding-top: 14px; display: grid; gap: 8px; }
   .step .n { font-family: var(--f-display); font-size: 13px; letter-spacing: 0.2em; color: var(--gold); }
   .step p { font-size: 17px; }
-  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .steps { grid-auto-flow: row; } }
   .invite { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
   .invite code { font-family: var(--f-body); font-size: 18px; padding: 12px 14px; border: 1px solid var(--line); background: var(--field); user-select: all; }
 </style>

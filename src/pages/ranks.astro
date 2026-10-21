@@ -3,7 +3,11 @@ import Base from '../layouts/Base.astro';
 import BackLink from '../components/BackLink.astro';
 import Lightbox from '../components/Lightbox.astro';
 import Rank from '../components/Rank.astro';
-import { DISCORD_URL, tiers, shieldwall, folk, leaders } from '../data/clan';
+import { pictureSize } from '../lib/picture-size';
+import { DISCORD_URL, tiers, shieldwall, folk, leaders, texts } from '../data/clan';
+
+const { hall } = texts.ranks;
+const hallSize = await pictureSize(hall.picture);
 ---
 
 <Base title="Ranks" description="The ranks of The Völsung Clan in Mount & Blade II: Bannerlord, from Thrall to Jarl, and the monthly promotion ceremony.">
@@ -13,7 +17,7 @@ import { DISCORD_URL, tiers, shieldwall, folk, leaders } from '../data/clan';
       <div class="head" data-stagger>
         <p class="eyebrow">From Thrall to Jarl</p>
         <h1>Ranks</h1>
-        <p>Every rank is earned in battle, in the civilian branch or by leading others.</p>
+        {texts.ranks.text && <p>{texts.ranks.text}</p>}
       </div>
       <div class="leaders" data-stagger>
         {
@@ -75,13 +79,17 @@ import { DISCORD_URL, tiers, shieldwall, folk, leaders } from '../data/clan';
 
   <section class="band">
     <div class="wrap feature">
-      <figure data-reveal>
-        <button type="button" class="zoom" data-src="/img/great-hall.webp"><img src="/img/great-hall.webp" alt="Clansmen gathered in the Völsung great hall before the Jarl and his housecarls" width="1400" height="636" loading="lazy" /></button>
-      </figure>
+      {
+        hall.picture && (
+          <figure data-reveal>
+            <button type="button" class="zoom" data-src={hall.picture}><img src={hall.picture} alt={hall.alt ?? ''} width={hallSize.width} height={hallSize.height} loading="lazy" /></button>
+          </figure>
+        )
+      }
       <div class="txt" data-stagger>
-        <p class="eyebrow">Promotion Ceremony</p>
-        <h2>The great hall</h2>
-        <p>On the last Sunday of every month we gather in our great hall to celebrate the achievements of our clansmen and hear updates and announcements from our leadership.</p>
+        {hall.eyebrow && <p class="eyebrow">{hall.eyebrow}</p>}
+        <h2>{hall.title}</h2>
+        {hall.text && <p>{hall.text}</p>}
       </div>
     </div>
     <div class="wrap links" data-reveal>

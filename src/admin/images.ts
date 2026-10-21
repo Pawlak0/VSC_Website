@@ -18,8 +18,9 @@ export function slugify(name: string): string {
   );
 }
 
-/** At most `maxWidth` wide, as JPEG for photos or PNG where a clear background matters (banners). */
-export async function shrink(file: File, maxWidth: number, type: 'image/jpeg' | 'image/png'): Promise<Blob> {
+/** At most `maxWidth` wide, as JPEG for photos, PNG where a clear background matters (banners), or WebP. A browser that
+ *  cannot write the type asked for hands back a PNG. */
+export async function shrink(file: File, maxWidth: number, type: 'image/jpeg' | 'image/png' | 'image/webp'): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, maxWidth / bitmap.width);
   const canvas = document.createElement('canvas');
@@ -31,6 +32,6 @@ export async function shrink(file: File, maxWidth: number, type: 'image/jpeg' | 
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
   return new Promise((ok, bad) =>
-    canvas.toBlob((b) => (b ? ok(b) : bad(new Error(`Could not read ${file.name}.`))), type, type === 'image/jpeg' ? 0.9 : undefined),
+    canvas.toBlob((b) => (b ? ok(b) : bad(new Error(`Could not read ${file.name}.`))), type, type === 'image/png' ? undefined : 0.9),
   );
 }

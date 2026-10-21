@@ -4,7 +4,7 @@ import BackLink from '../components/BackLink.astro';
 import Banner from '../components/Banner.astro';
 import FylkiBanner from '../components/FylkiBanner.astro';
 import FlokkrList from '../components/FlokkrList.astro';
-import { DISCORD_URL, bannerLook, fylki, jarldomMap } from '../data/clan';
+import { DISCORD_URL, bannerLook, fylki, jarldomMap, texts } from '../data/clan';
 ---
 
 <Base title="The Jarldom" description="The Fylki and Flokkr of The Völsung Clan in Mount & Blade II: Bannerlord, each under its own banner.">
@@ -14,7 +14,7 @@ import { DISCORD_URL, bannerLook, fylki, jarldomMap } from '../data/clan';
       <div class="head" data-stagger>
         <p class="eyebrow">Fylki and Flokkr</p>
         <h1>The Jarldom</h1>
-        <p>The clan marches under one banner and is divided into Fylki, each with its own banner and Merkismaðr. Every Fylki holds smaller Flokkr and has its own page.</p>
+        {texts.jarldom.text && <p>{texts.jarldom.text}</p>}
       </div>
       <div class="crown">
         <div class="bannerframe">
