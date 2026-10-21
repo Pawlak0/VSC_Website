@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-  # Rebuild every hour so the Discord counts and calendar on the home page stay fresh.
+  # Rebuild every hour so the Discord counts, the calendar and the Fylki members stay fresh.
   schedule:
     - cron: '17 * * * *'
 
@@ -32,6 +32,8 @@ jobs:
         env:
           # Feed from Sesh's /link command; without it the site shows the fixed week.
           SESH_ICS_URL: ${{ secrets.SESH_ICS_URL }}
+          # The clan's bot, which reads who has each Fylki's role; without it the Fylki pages leave out their members.
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

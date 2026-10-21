@@ -7,7 +7,9 @@ import Saga from '../../components/Saga.astro';
 import Lightbox from '../../components/Lightbox.astro';
 import Leadership from '../../components/Leadership.astro';
 import BackLink from '../../components/BackLink.astro';
+import Clansmen from '../../components/Clansmen.astro';
 import { DISCORD_URL, fylki, type Fylki } from '../../data/clan';
+import { clansmenWith } from '../../lib/clansmen';
 
 export function getStaticPaths() {
   return fylki.map((f) => ({ params: { slug: f.slug }, props: { fylki: f } }));
@@ -15,6 +17,7 @@ export function getStaticPaths() {
 
 const { fylki: f } = Astro.props as { fylki: Fylki };
 const others = fylki.filter((o) => o.slug !== f.slug);
+const members = await clansmenWith(f.discordRole);
 ---
 
 <Base title={f.name} description={`${f.name}, a Fylki of The Völsung Clan in Mount & Blade II: Bannerlord.`} colors={f.colors}>
@@ -47,6 +50,13 @@ const others = fylki.filter((o) => o.slug !== f.slug);
   <section>
     <div class="wrap">
       <Leadership name={f.name} unit="Fylki" ls={f.ls} />
+      {
+        members && members.length > 0 && (
+          <div class="people">
+            <Clansmen name={f.name} members={members} />
+          </div>
+        )
+      }
     </div>
   </section>
 
@@ -89,6 +99,7 @@ const others = fylki.filter((o) => o.slug !== f.slug);
   h1 { font-size: clamp(36px, 7vw, 84px); font-weight: 900; letter-spacing: 0.05em; overflow-wrap: anywhere; }
   .lede { max-width: 50ch; font-size: clamp(19px, 2vw, 22px); color: var(--muted); }
   .flokkr-row :global(.flokkr) { justify-content: flex-start; --pennant: 120px; }
+  .people { margin-top: clamp(56px, 8vw, 96px); }
   .others { display: grid; gap: 20px; justify-items: start; }
   .links { display: flex; flex-wrap: wrap; gap: 20px; }
 </style>
