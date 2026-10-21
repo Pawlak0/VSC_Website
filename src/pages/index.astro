@@ -3,25 +3,21 @@ import Base from '../layouts/Base.astro';
 import Gallery from '../components/Gallery.astro';
 import Lightbox from '../components/Lightbox.astro';
 import VideoGrid from '../components/VideoGrid.astro';
-import { DISCORD_URL, pillars, events, CLAN_TIME_ZONE, news, gallery, videos, creators, otherGames, faq, texts } from '../data/clan';
+import { DISCORD_URL, pillars, CLAN_TIME_ZONE, news, gallery, videos, creators, otherGames, faq, texts } from '../data/clan';
 import { fetchCounts, inviteCode } from '../lib/discord';
 import { upcomingEvents } from '../lib/sesh';
 import { videoCards } from '../lib/videos';
 
-const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 const invite = inviteCode(DISCORD_URL);
 const counts = await fetchCounts(invite);
 const fmt = (n?: number) => (n === undefined ? '' : n.toLocaleString('en'));
 
 // The next events from the Discord calendar (started up to two hours ago, so a running event still shows).
-// While the calendar is not connected or has nothing planned, the fixed week is shown instead.
+// While the calendar is not connected or has nothing planned, the section only points to the Discord.
 const inZone = (d: Date, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-GB', { timeZone: CLAN_TIME_ZONE, ...o }).format(d);
 const now = Date.now();
 const calendar = await upcomingEvents(import.meta.env.SESH_ICS_URL, new Date(now - 2 * 3_600_000), new Date(now + 30 * 86_400_000));
-const known = (name: string) => events.find((e) => e.name.toLowerCase() === name.toLowerCase());
-const upcoming = calendar?.length
-  ? calendar.slice(0, 6).map((e) => ({ ...e, text: known(e.name)?.text ?? e.text, monthly: known(e.name)?.monthly }))
-  : null;
+const upcoming = calendar?.length ? calendar.slice(0, 6) : null;
 
 const homeVideos = (await videoCards(videos)).filter((v) => v.home);
 
@@ -49,7 +45,7 @@ const platform = (url: string) => {
       {hero.text && <p class="lede">{hero.text}</p>}
       <div class="ctas">
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
-        <a class="btn btn-ghost" href="#events">{upcoming ? 'Upcoming events' : 'See the week'}</a>
+        <a class="btn btn-ghost" href="#events">{upcoming ? 'Upcoming events' : 'Where to find us'}</a>
       </div>
       {
         hero.facts.length > 0 && (
@@ -99,18 +95,18 @@ const platform = (url: string) => {
   <section id="events">
     <div class="wrap">
       <div class="head" data-stagger>
-        <p class="eyebrow">{upcoming ? 'Upcoming events' : 'The Völsung week'}</p>
+        <p class="eyebrow">{upcoming ? 'Upcoming events' : 'Events'}</p>
         <h2>{week.title}</h2>
-        <p>{[week.text, upcoming ? 'These are the next events on our Discord calendar.' : 'These are the fixed points.'].filter(Boolean).join(' ')}</p>
+        <p>{[week.text, upcoming ? 'These are the next events on our Discord calendar.' : 'Every event is announced on our Discord.'].filter(Boolean).join(' ')}</p>
       </div>
       <div class="findus" data-reveal>
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Find us on Discord</a>
       </div>
       {
-        upcoming ? (
+        upcoming && (
           <ol class="upcoming" data-stagger>
             {upcoming.map((e) => (
-              <li class:list={['ev', { monthly: e.monthly }]}>
+              <li class="ev">
                 <time class="when" datetime={e.start.toISOString()}>
                   <span data-part="weekday">{inZone(e.start, { weekday: 'short' })}</span>
                   <b data-part="day">{inZone(e.start, { day: 'numeric' })}</b>
@@ -126,28 +122,15 @@ const platform = (url: string) => {
               </li>
             ))}
           </ol>
-        ) : (
-          <div class="week" data-stagger>
-            {days.map((d) => {
-              const today = events.filter((e) => e.day === d);
-              return (
-                <div class:list={['day', { empty: today.length === 0 }]}>
-                  <span class="dn">{d}</span>
-                  {today.map((e) => (
-                    <div class:list={['ev', { monthly: e.monthly }]}>
-                      <h3>{e.name}</h3>
-                      <p>{e.text}</p>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+        )
+      }
+      {
+        upcoming && (
+          <div class="legend" data-reveal>
+            <span data-tz>Times in Central European Time</span>
           </div>
         )
       }
-      <div class="legend" data-reveal>
-        {upcoming ? <span data-tz>Times in Central European Time</span> : <><span>Solid line: every week</span><span>Dotted line: once a month</span></>}
-      </div>
     </div>
   </section>
 
@@ -441,12 +424,7 @@ const platform = (url: string) => {
     .pillar + .pillar::before { display: none; }
   }
 
-  .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--line); }
-  .day { min-height: 190px; padding: 14px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
-  .day:first-child { border-left: 0; }
-  .dn { font-family: var(--f-display); font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
   .ev { border-top: 2px solid var(--gold); padding-top: 10px; display: grid; gap: 4px; }
-  .ev.monthly { border-top-style: dotted; }
   .ev h3 { font-size: 16px; }
   .ev p { font-size: 15px; color: var(--muted); line-height: 1.4; }
   /* Upcoming events stand side by side as tall cards, read left to right like a calendar strip.
@@ -466,7 +444,6 @@ const platform = (url: string) => {
     scrollbar-color: var(--line) transparent;
   }
   .upcoming .ev { scroll-snap-align: start; min-height: 320px; align-content: start; gap: 6px; padding: 18px 16px 20px; border: 1px solid var(--line); border-top: 2px solid var(--gold); background: var(--field); }
-  .upcoming .ev.monthly { border-top-style: dotted; }
   .upcoming .ev > div { display: grid; gap: 6px; align-content: start; }
   .upcoming h3 { font-size: 17px; overflow-wrap: anywhere; }
   .when {
@@ -494,14 +471,6 @@ const platform = (url: string) => {
   }
   .findus { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin: -12px 0 28px; }
   .legend { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; color: var(--muted); font-size: 16px; }
-  @media (max-width: 900px) {
-    .week { grid-template-columns: 1fr; }
-    .day { min-height: 0; border-left: 0; border-top: 1px solid var(--line); flex-direction: row; align-items: flex-start; gap: 16px; }
-    .day:first-child { border-top: 0; }
-    .dn { width: 46px; flex: none; padding-top: 12px; }
-    .day.empty { display: none; }
-    .ev { flex: 1; }
-  }
 
 
 

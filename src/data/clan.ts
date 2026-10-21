@@ -37,16 +37,6 @@ export const texts = {
 
 export const pillars: Pillar[] = full(siteTexts.about.pillars as Pillar[], 'name');
 
-export type Event = {
-  day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
-  name: string;
-  text: string;
-  monthly?: boolean;
-};
-
-/** The fixed week, shown until the Discord calendar (Sesh) is connected and when it has nothing planned. */
-export const events: Event[] = full(siteTexts.week.events as Event[], 'name');
-
 /** Time zone of calendar dates and times when the visitor's browser cannot convert them to their own. */
 export const CLAN_TIME_ZONE = 'Europe/Berlin';
 

@@ -13,7 +13,6 @@ Most text lives in one file: [`src/data/clan.ts`](src/data/clan.ts).
 | What | Where |
 | --- | --- |
 | "Who we are" points, with a picture or a YouTube video under each | `pillars` |
-| Weekly events | `events` |
 | Fylki (name, banner, Flokkr, description, LS, saga, photos, page colours) | `src/data/fylki.json`, editable in the site panel; `colors` (`{ accent, glow }`, taken from the banner) colour that unit's own page and light its banner; a Flokkr has the same fields apart from its own Flokkr, and one with a description, saga, LS or photos gets its own page at `/fylki/<fylki>/<flokkr>/`. The panel's "Make it a Fylki" turns a grown Flokkr into a Fylki, and its old page forwards to the new one (`movedFrom`) |
 | Ranks and leadership | `tiers`, `shieldwall`, `folk`, `leaders` (rank icons go in `public/img/ranks/`, set as `icon`) |
 | Gallery images | `src/data/photos.json`, editable in the site panel; pictures go in `src/assets/gallery/` and the build resizes them; `home: true` also puts one on the home page, the Media page shows all of them |
@@ -37,7 +36,7 @@ The members and online counts under the hero come from the public Discord invite
 
 ### Discord calendar (Sesh)
 
-"Where to find us" lists the next events (up to six, within 30 days) from the clan's Sesh calendar. The feed address from Sesh's `/link` command is stored as the repository secret `SESH_ICS_URL` (Settings → Secrets and variables → Actions) and never in the code, since anyone with it can read the calendar. Without JavaScript dates and times are shown in `CLAN_TIME_ZONE` (`src/data/clan.ts`); otherwise visitors see them in their own time zone. When an event's name matches one in `events`, the site uses that description, and a monthly one gets a dotted line. Without the secret, or when the calendar is empty, the fixed `events` week is shown.
+"Where to find us" lists the next events (up to six, within 30 days) from the clan's Sesh calendar. The feed address from Sesh's `/link` command is stored as the repository secret `SESH_ICS_URL` (Settings → Secrets and variables → Actions) and never in the code, since anyone with it can read the calendar. Without JavaScript dates and times are shown in `CLAN_TIME_ZONE` (`src/data/clan.ts`); otherwise visitors see them in their own time zone. Each event shows the first line of its Sesh description. Without the secret, or when the calendar is empty, the section only points visitors to the Discord. Its heading and text are in the site panel's Texts tab.
 
 ### Fylki members (Discord roles)
 

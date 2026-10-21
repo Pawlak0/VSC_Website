@@ -70,7 +70,7 @@ type Texts = {
   google: { title: string; description: string };
   hero: { picture?: string; alt?: string; eyebrow?: string; text?: string; facts?: string[] };
   about: { eyebrow?: string; title: string; text?: string; pillars?: { name: string; text?: string; image?: string; alt?: string; video?: string }[] };
-  week: { title: string; text?: string; events?: { day: string; name: string; text?: string; monthly?: boolean }[] };
+  week: { title: string; text?: string };
   media: { eyebrow?: string; title: string; gamesText?: string; games?: { name: string; image?: string }[] };
   faq: { eyebrow?: string; title: string; questions?: { q: string; a: string }[] };
   join: { picture?: string; eyebrow?: string; title: string; text?: string; steps?: { title: string; text?: string }[] };
@@ -1461,7 +1461,6 @@ function mapView() {
 
 // ---------- texts and pictures of the pages ----------
 
-const DAYS: [string, string][] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => [d, d]);
 /** The parts of the Texts tab folded open, kept while the panel is open. */
 const openParts = new Set<string>(['Google']);
 
@@ -1473,7 +1472,6 @@ function textsMissing(t?: Texts) {
     blank(t.google?.description) ||
     [t.about, t.week, t.media, t.faq, t.join, t.ranks?.hall].some((part) => blank(part?.title)) ||
     (t.about?.pillars ?? []).some((p) => blank(p.name)) ||
-    (t.week?.events ?? []).some((e) => blank(e.name)) ||
     (t.media?.games ?? []).some((g) => blank(g.name)) ||
     (t.faq?.questions ?? []).some((q) => blank(q.q) || blank(q.a)) ||
     (t.join?.steps ?? []).some((s) => blank(s.title))
@@ -1548,7 +1546,6 @@ function textsView() {
   googleText.addEventListener('input', g.draw);
   const facts = (t.hero.facts ??= []);
   const pillars = (t.about.pillars ??= []);
-  const events = (t.week.events ??= []);
   const games = (t.media.games ??= []);
   const questions = (t.faq.questions ??= []);
   const steps = (t.join.steps ??= []);
@@ -1621,20 +1618,9 @@ function textsView() {
         'cards',
       ),
     ]),
-    part('Home page: the week', 'Where to find us. While the Discord calendar has events planned it shows those; an event there with the same name as one here gets the text from here.', (redraw) => [
+    part('Home page: events', 'Where to find us. The events themselves come from the Discord calendar (Sesh), the next six of them.', () => [
       field('Heading', input(t.week, 'title', { required: true })),
-      field('Text', input(t.week, 'text', { area: 2 }), 'The site adds whether these are the next events on the calendar or the fixed week.'),
-      h('h4', {}, 'The fixed week'),
-      rows(
-        events,
-        (e) => [
-          h('div', { class: 'row' }, field('Day', select(e, 'day', DAYS, 'Mon')), field('Name', input(e, 'name', { required: true })), toggle(e, 'monthly', 'Once a month')),
-          field('Text', input(e, 'text')),
-        ],
-        () => ({ day: 'Mon', name: '' }),
-        'event',
-        redraw,
-      ),
+      field('Text', input(t.week, 'text', { area: 2 }), 'The site adds that these are the next events on the Discord calendar.'),
     ]),
     part('Home page: Media', 'The photos and videos come from the Photos and Videos tabs; here are the words around them and the other games.', (redraw) => [
       field('Small line', input(t.media, 'eyebrow')),

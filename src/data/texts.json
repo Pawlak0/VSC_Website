@@ -48,30 +48,7 @@
   },
   "week": {
     "title": "Where to find us",
-    "text": "Persistent Bannerlord runs every day.",
-    "events": [
-      {
-        "day": "Tue",
-        "name": "Middle-Earth",
-        "text": "Lord of the Rings field battle with unique skins, weapons and maps."
-      },
-      {
-        "day": "Sat",
-        "name": "Chronicles Drengr",
-        "text": "10th–11th century Europe with realistic damage, speed and armour."
-      },
-      {
-        "day": "Sun",
-        "name": "BRE Sunday",
-        "text": "Modded field battle, 500+ players, custom Völsung classes."
-      },
-      {
-        "day": "Sun",
-        "name": "Promotion Ceremony",
-        "text": "Last Sunday of the month, in our great hall.",
-        "monthly": true
-      }
-    ]
+    "text": "Persistent Bannerlord runs every day."
   },
   "media": {
     "eyebrow": "Media",
