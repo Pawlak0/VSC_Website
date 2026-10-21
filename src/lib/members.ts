@@ -7,7 +7,10 @@ export const API_URL: string = import.meta.env.PUBLIC_API_URL ?? 'https://api.vo
 /** Where the "Log in with Discord" button goes; Discord sends the member back to `back` on this site. */
 export const loginUrl = (back = '/account/') => `${API_URL}/auth/login?return=${encodeURIComponent(back)}`;
 
-export type Me = { id: string; name: string; avatar: string; memberSince: number };
+/** What a member shows on their profile: a button to message them on Discord, and a link to their Steam profile. */
+export type Links = { discord: boolean; steam: string | null };
+
+export type Me = { id: string; name: string; avatar: string; memberSince: number; links: Links };
 
 export const maybeSignedIn = () => document.cookie.split(/;\s*/).includes('vsc_signed_in=1');
 
@@ -24,4 +27,12 @@ export async function act(what: 'logout' | 'logout-all' | 'delete'): Promise<voi
   const path = { logout: '/auth/logout', 'logout-all': '/auth/logout-all', delete: '/me/delete' }[what];
   const res = await fetch(API_URL + path, { method: 'POST', credentials: 'include' });
   if (!res.ok && res.status !== 401) throw new Error(`The sign-in service answered ${res.status}`);
+}
+
+/** Saves the signed-in member's profile links and returns them as kept. Throws 'steam' when the Steam link is not one. */
+export async function saveLinks(links: Links): Promise<Links> {
+  const res = await fetch(`${API_URL}/me/links`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(links) });
+  if (res.ok) return res.json();
+  const { error } = await res.json().catch(() => ({ error: '' }));
+  throw new Error(error === 'steam' ? 'steam' : `The sign-in service answered ${res.status}`);
 }

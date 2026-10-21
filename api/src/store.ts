@@ -5,7 +5,10 @@ import { avatarOf, nameOf, type Member } from './discord';
 export const SESSION_DAYS = 30;
 const DAY = 24 * 60 * 60 * 1000;
 
-export type Account = { id: string; name: string; avatar: string; first_seen: number; checked_at: number };
+export type Account = { id: string; name: string; avatar: string; first_seen: number; checked_at: number; show_discord: number; steam: string | null };
+
+/** What a member chose to show on their profile: a button to message them on Discord, and a link to their Steam profile. */
+export type Links = { discord: boolean; steam: string | null };
 
 export function randomToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -42,11 +45,24 @@ export async function startSession(db: D1Database, memberId: string, now: number
 export async function findSession(db: D1Database, token: string, now: number): Promise<Account | null> {
   return db
     .prepare(
-      `SELECT m.id, m.name, m.avatar, m.first_seen, m.checked_at FROM sessions s JOIN members m ON m.id = s.member_id
+      `SELECT m.id, m.name, m.avatar, m.first_seen, m.checked_at, m.show_discord, m.steam FROM sessions s JOIN members m ON m.id = s.member_id
        WHERE s.token_hash = ? AND s.expires_at > ? AND m.left_at IS NULL`,
     )
     .bind(await sha256(token), now)
     .first<Account>();
+}
+
+export async function saveLinks(db: D1Database, memberId: string, links: Links): Promise<void> {
+  await db.prepare('UPDATE members SET show_discord = ?, steam = ? WHERE id = ?').bind(links.discord ? 1 : 0, links.steam, memberId).run();
+}
+
+/** Every member's chosen links, for the website to put on the profiles when it builds: only members still in the clan
+ * who turned something on. */
+export async function publicLinks(db: D1Database): Promise<Record<string, Partial<Links>>> {
+  const { results } = await db
+    .prepare('SELECT id, show_discord, steam FROM members WHERE left_at IS NULL AND (show_discord = 1 OR steam IS NOT NULL)')
+    .all<{ id: string; show_discord: number; steam: string | null }>();
+  return Object.fromEntries(results.map((r) => [r.id, { ...(r.show_discord ? { discord: true } : {}), ...(r.steam ? { steam: r.steam } : {}) }]));
 }
 
 export async function endSession(db: D1Database, token: string): Promise<void> {

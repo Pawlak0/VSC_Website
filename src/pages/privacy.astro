@@ -21,12 +21,14 @@ import { DISCORD_URL } from '../data/clan';
 
         <h2>Members on the Fylki pages and their profiles</h2>
         <p>Each Fylki page lists the people who have that Fylki's role on the Völsung Discord server, with the name they go by there and their Discord picture. Every Clansman also has a profile page showing that name and picture, their Fylki, their rank, medals and other games as given by their roles on the server, and the month they joined it. All of this is read from Discord about once an hour, so it follows roles being given or taken away. The pictures and medal icons are copied to this site, so viewing a page does not contact Discord. Search engines are asked to leave the profiles out. If you would rather not be listed or have a profile, tell an officer and you will be left out.</p>
+        <p>Signed-in members can also put a button to message them on Discord and a link to their Steam profile on their profile, from <a class="inline" href="/account/">their account page</a>. Both stay off until the member adds them, and they go when the member removes them, deletes their account or leaves the clan.</p>
 
         <h2>Signing in as a member</h2>
         <p>Members can sign in with Discord. Discord then tells the clan's sign-in service your Discord user ID, your name and picture, and the roles you have on the Völsung Discord server. Only people with the Völsung Clansman role get in. For them we keep:</p>
         <ul>
           <li>your Discord user ID, the name you go by on our server and a link to your picture,</li>
           <li>when you first and last signed in, and when your role was last confirmed,</li>
+          <li>if you choose to show them on your profile, that you want a button to message you on Discord and the link to your Steam profile,</li>
           <li>for each browser you are signed in on, a record of the session: a one-way hash of its cookie and when it ends.</li>
         </ul>
         <p>We never see your password or email address. We do not keep your list of roles or the access token Discord gives us; the token is cancelled as soon as your role is checked. People without the role are turned away and nothing about them is kept.</p>

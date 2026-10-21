@@ -3,7 +3,7 @@
 // Clansman role get in; the role is checked at sign-in, again at most an hour later while they use the site, and by
 // the hourly check, which signs out anyone who has lost it.
 import { DiscordError, exchangeCode, membership, ownMembership, revoke } from './discord';
-import { SESSION_DAYS, dueForCheck, endAllSessions, endSession, findSession, forget, freeze, randomToken, saveMember, startSession, tidy, underLimit, type Account } from './store';
+import { SESSION_DAYS, dueForCheck, endAllSessions, endSession, findSession, forget, freeze, publicLinks, randomToken, saveLinks, saveMember, startSession, tidy, underLimit, type Account, type Links } from './store';
 
 export interface Env {
   DB: D1Database;
@@ -154,7 +154,8 @@ async function signedIn(req: Request, env: Env): Promise<Account | null> {
 async function me(req: Request, env: Env): Promise<Response> {
   const account = await signedIn(req, env);
   if (!account) return respond(env, { error: 'signed-out' }, 401, [hintCookie(env, false)]);
-  return respond(env, { id: account.id, name: account.name, avatar: account.avatar, memberSince: account.first_seen });
+  const links: Links = { discord: account.show_discord === 1, steam: account.steam };
+  return respond(env, { id: account.id, name: account.name, avatar: account.avatar, memberSince: account.first_seen, links });
 }
 
 /** Changes come only from the website itself: other sites cannot sign anyone out or delete an account. */
@@ -170,6 +171,37 @@ async function logout(req: Request, env: Env, everywhere: boolean): Promise<Resp
     await endSession(env.DB, token);
   }
   return respond(env, null, 204, signedOut(env));
+}
+
+/** A Steam profile link in one plain form, from what a member pasted: a steamcommunity.com/id/… or /profiles/… link,
+ * or a bare SteamID64. Null for anything else, so the profile can only ever link to Steam. */
+export function steamProfile(input: string): string | null {
+  const s = input.trim();
+  if (/^7656\d{13}$/.test(s)) return `https://steamcommunity.com/profiles/${s}/`;
+  const m = /^(?:https?:\/\/)?(?:www\.)?steamcommunity\.com\/(id|profiles)\/([A-Za-z0-9_-]{2,32})(?:[/?#].*)?$/i.exec(s);
+  if (!m) return null;
+  const kind = m[1].toLowerCase();
+  if (kind === 'profiles' && !/^7656\d{13}$/.test(m[2])) return null;
+  return `https://steamcommunity.com/${kind}/${m[2]}/`;
+}
+
+/** Saves what the signed-in member shows on their profile. The website picks it up at its next hourly rebuild. */
+async function setLinks(req: Request, env: Env): Promise<Response> {
+  if (!fromSite(req, env)) return respond(env, { error: 'forbidden' }, 403);
+  const account = await signedIn(req, env);
+  if (!account) return respond(env, { error: 'signed-out' }, 401, signedOut(env));
+  const text = await req.text();
+  let body: { discord?: unknown; steam?: unknown } | null = null;
+  try {
+    if (text.length <= 1000) body = JSON.parse(text);
+  } catch {}
+  if (typeof body?.discord !== 'boolean' || (body.steam !== null && typeof body.steam !== 'string')) return respond(env, { error: 'bad-request' }, 400);
+  const pasted = typeof body.steam === 'string' ? body.steam.trim() : '';
+  const steam = pasted ? steamProfile(pasted) : null;
+  if (pasted && !steam) return respond(env, { error: 'steam' }, 400);
+  const links: Links = { discord: body.discord, steam };
+  await saveLinks(env.DB, account.id, links);
+  return respond(env, links);
 }
 
 async function deleteAccount(req: Request, env: Env): Promise<Response> {
@@ -207,7 +239,7 @@ export default {
     const url = new URL(req.url);
     try {
       if (req.method === 'OPTIONS') {
-        return new Response(null, { status: 204, headers: { ...corsHeaders(env), 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Max-Age': '600' } });
+        return new Response(null, { status: 204, headers: { ...corsHeaders(env), 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600' } });
       }
       switch (`${req.method} ${url.pathname}`) {
         case 'GET /':
@@ -226,6 +258,10 @@ export default {
           return await logout(req, env, true);
         case 'POST /me/delete':
           return await deleteAccount(req, env);
+        case 'POST /me/links':
+          return await setLinks(req, env);
+        case 'GET /links':
+          return respond(env, await publicLinks(env.DB));
       }
       return respond(env, { error: 'not-found' }, 404);
     } catch (e) {
