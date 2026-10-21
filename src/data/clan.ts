@@ -64,6 +64,8 @@ export type Member = {
   title?: string;
   /** Path under /public, e.g. /img/fylki/leon.jpg. */
   portrait?: string;
+  /** Their Discord user ID, for when their name alone does not find them on the clan's Discord. Optional. */
+  discord?: string;
 };
 
 /** The LS (leadership) of a Fylki or a Flokkr. Empty lists show as "To be announced". */

@@ -1,33 +1,49 @@
 ---
-import type { Clansman } from '../lib/clansmen';
+import type { Profile } from '../lib/clansmen';
 
 interface Props {
   name: string;
-  members: Clansman[];
+  /** The people under the LS, by tier of the Ranks page (byTier in src/lib/clansmen.ts). */
+  groups: { name: string; meaning: string; people: Profile[] }[];
 }
 
-const { name, members } = Astro.props;
+const { name, groups } = Astro.props;
+const count = groups.reduce((n, g) => n + g.people.length, 0);
 ---
 
 <div class="head" data-stagger>
   <p class="eyebrow">Members</p>
   <h2>The people of {name}</h2>
-  <p>{members.length === 1 ? 'One Clansman' : `${members.length} Clansmen`} of {name}, as they are on the clan's Discord.</p>
+  <p>{count === 1 ? 'One more Clansman' : `${count} more Clansmen`} of {name}, by rank, as they are on the clan's Discord.</p>
 </div>
-<ul class="clansmen" data-reveal>
+<div class="tiers" data-reveal>
   {
-    members.map((m) => (
-      <li>
-        <a href={`/members/${m.id}/`}>
-          {m.picture ? <img src={m.picture} alt="" width="40" height="40" loading="lazy" /> : <span class="emblem" aria-hidden="true" />}
-          <span class="name">{m.name}</span>
-        </a>
-      </li>
+    groups.map((g) => (
+      <div class="tier">
+        <header>
+          <h3>{g.name}</h3>
+          <p>{g.meaning}</p>
+        </header>
+        <ul class="clansmen">
+          {g.people.map((m) => (
+            <li>
+              <a href={`/members/${m.id}/`}>
+                {m.picture ? <img src={m.picture} alt="" width="40" height="40" loading="lazy" /> : <span class="emblem" aria-hidden="true" />}
+                <span class="name">{m.name}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
     ))
   }
-</ul>
+</div>
 
 <style>
+  .tiers { display: grid; gap: 40px; }
+  .tier { display: grid; gap: 18px; }
+  .tier header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .tier header p { color: var(--muted); font-size: 16px; }
   .clansmen { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px 24px; }
   li { min-width: 0; }
   a { display: flex; align-items: center; gap: 12px; min-width: 0; color: inherit; text-decoration: none; }

@@ -5,7 +5,7 @@
 // answer, the lists and profiles stay out. Pictures are copied into the site, so visitors' browsers never ask Discord.
 import { createHash } from 'node:crypto';
 import { plainName } from './names';
-import { CLANSMAN_ROLE_ID, DISCORD_GUILD_ID, PROFILE_SECTIONS, UNLISTED, folk, fylki, shieldwall, tiers, type Rank } from '../data/clan';
+import { CLANSMAN_ROLE_ID, DISCORD_GUILD_ID, PROFILE_SECTIONS, UNLISTED, folk, fylki, shieldwall, tiers, type FylkiLeadership, type Member, type Rank } from '../data/clan';
 
 // Overridable only to try the lists against a pretend Discord.
 const API: string = import.meta.env.DISCORD_API ?? 'https://discord.com/api/v10';
@@ -57,15 +57,17 @@ export type Profile = Clansman & {
   games: string[];
   /** When they joined the clan's server. */
   joined?: string;
+  /** Their nickname, Discord name and username folded (see fold), to find them by a name written in the site panel. */
+  keys: string[];
 };
 
-type Lists = { byRole: Map<string, Clansman[]>; profiles: Profile[]; pictures: Map<string, Buffer> };
+type Lists = { byRole: Map<string, Profile[]>; profiles: Profile[]; pictures: Map<string, Buffer> };
 
 let loaded: Promise<Lists | null> | undefined;
 const lists = () => (loaded ??= read(import.meta.env.DISCORD_BOT_TOKEN));
 
 /** Everyone with the role, sorted by name. Null when the lists cannot be read, so the page leaves them out. */
-export async function clansmenWith(role?: string): Promise<Clansman[] | null> {
+export async function clansmenWith(role?: string): Promise<Profile[] | null> {
   if (!role) return null;
   const all = await lists();
   return all ? (all.byRole.get(role) ?? []) : null;
@@ -79,6 +81,49 @@ export async function profiles(): Promise<Profile[]> {
 /** The copied pictures by file name, served from /img/members/ (members) and /img/medals/ (medal icons). */
 export async function memberPictures(folder: 'members' | 'medals'): Promise<[string, Buffer][]> {
   return [...((await lists())?.pictures ?? [])].filter(([name]) => name.startsWith(`${folder}/`)).map(([name, file]) => [name.slice(folder.length + 1), file]);
+}
+
+/** Someone named in an LS, with the Clansman found for them on Discord. */
+export type Placed = Member & { id?: string; picture?: string };
+
+/**
+ * Finds the people of an LS on Discord: by the Discord ID set for them in the site panel, else by their name among
+ * `first` (the unit's own people), then among everyone. Also says which Clansmen were found, so the member list
+ * under the LS can leave them out.
+ */
+export async function withDiscord(unit: string, ls: FylkiLeadership, first: Profile[] = []): Promise<{ ls: Record<keyof FylkiLeadership, Placed[]>; found: Set<string> }> {
+  const everyone = await profiles();
+  const found = new Set<string>();
+  const missing: string[] = [];
+  const place = (m: Member): Placed => {
+    const id = m.discord?.trim();
+    const key = fold(m.name);
+    const who = id ? everyone.find((p) => p.id === id) : (first.find((p) => p.keys.includes(key)) ?? everyone.find((p) => p.keys.includes(key)));
+    if (!who) {
+      missing.push(m.name);
+      return m;
+    }
+    found.add(who.id);
+    return { ...m, id: who.id, picture: who.picture };
+  };
+  const placed = Object.fromEntries(Object.entries(ls).map(([role, list]) => [role, list.map(place)])) as Record<keyof FylkiLeadership, Placed[]>;
+  if (everyone.length && found.size + missing.length) console.log(`[discord] ${unit} LS: ${found.size} found on Discord${missing.length ? `, not found: ${missing.join(', ')}` : ''}`);
+  return { ls: placed, found };
+}
+
+/** People sorted into the tiers of the Ranks page by their highest rank, highest tier first; empty tiers are left out. */
+export function byTier(people: Profile[]): { name: string; meaning: string; people: Profile[] }[] {
+  const groups = [...tiers.map((t) => ({ name: t.name, meaning: t.meaning, ranks: t.ranks })), { name: 'Skjaldborg', meaning: 'The Shieldwall', ranks: SHIELDWALL }];
+  const order = (p: Profile) => (p.ranks[0] ? RANKS.indexOf(p.ranks[0]) : RANKS.length);
+  const tierOf = (p: Profile) => groups.findIndex((g) => p.ranks[0] && g.ranks.includes(p.ranks[0]));
+  return [...groups, { name: 'Unranked', meaning: 'No rank on Discord yet', ranks: [] }]
+    .map((g, i) => ({
+      name: g.name,
+      meaning: g.meaning,
+      // Stable sort: highest rank first, and by name within a rank as the list came.
+      people: people.filter((p) => (tierOf(p) < 0 ? groups.length : tierOf(p)) === i).sort((a, b) => order(a) - order(b)),
+    }))
+    .filter((g) => g.people.length);
 }
 
 async function read(token?: string): Promise<Lists | null> {
@@ -107,37 +152,44 @@ async function read(token?: string): Promise<Lists | null> {
     ];
     for (let i = 0; i < jobs.length; i += 25) await Promise.all(jobs.slice(i, i + 25).map((job) => job()));
 
-    const clansman = (m: GuildMember): Clansman => ({ id: m.user.id, name: nameOf(m), picture: pictureOf.get(`members/${m.user.id}`) });
     const byName = (a: Clansman, b: Clansman) => sortKey(a.name).localeCompare(sortKey(b.name), 'en');
-    const byRole = new Map<string, Clansman[]>();
-    for (const role of roles) {
-      const people = listed.filter((m) => m.roles.includes(role)).map(clansman).sort(byName);
-      byRole.set(role, people);
-      console.log(`[discord] ${fylki.find((f) => f.discordRole === role)?.name}: ${people.length} members`);
-    }
-
     // Roles from the top of the server's list down, the order Discord shows them in on a profile.
     const ordered = [...guildRoles].sort((a, b) => b.position - a.position);
     const rankOf = new Map(ordered.flatMap((r) => (rankNamed(r.name) ? [[r.id, rankNamed(r.name)!] as const] : [])));
-    const profileList = listed
-      .map((m): Profile => {
+    const profileOf = new Map(
+      listed.map((m): [string, Profile] => {
         const own = ordered.filter((r) => m.roles.includes(r.id));
         const tag = nameOf(m).match(/\[([^\]]+)\]/)?.[1];
         const ranks = [...new Set(own.map((r) => rankOf.get(r.id)).filter((r): r is Rank => Boolean(r)))];
         if (!ranks.length && tag && rankNamed(tag)) ranks.push(rankNamed(tag)!);
-        return {
-          ...clansman(m),
-          plainName: plainName(nameOf(m)),
-          fylki: fylki.find((f) => f.discordRole && m.roles.includes(f.discordRole))?.slug,
-          ranks: ranks.sort((a, b) => RANKS.indexOf(a) - RANKS.indexOf(b)),
-          medals: own
-            .filter((r) => sections.medals.has(r.id))
-            .map((r) => ({ name: r.name, icon: pictureOf.get(`medals/${r.id}`), emoji: r.unicode_emoji ?? undefined, color: r.color ? `#${r.color.toString(16).padStart(6, '0')}` : undefined })),
-          games: own.filter((r) => sections.games.has(r.id)).map((r) => r.name),
-          joined: m.joined_at ?? undefined,
-        };
-      })
-      .sort(byName);
+        return [
+          m.user.id,
+          {
+            id: m.user.id,
+            name: nameOf(m),
+            picture: pictureOf.get(`members/${m.user.id}`),
+            plainName: plainName(nameOf(m)),
+            fylki: fylki.find((f) => f.discordRole && m.roles.includes(f.discordRole))?.slug,
+            ranks: ranks.sort((a, b) => RANKS.indexOf(a) - RANKS.indexOf(b)),
+            medals: own
+              .filter((r) => sections.medals.has(r.id))
+              .map((r) => ({ name: r.name, icon: pictureOf.get(`medals/${r.id}`), emoji: r.unicode_emoji ?? undefined, color: r.color ? `#${r.color.toString(16).padStart(6, '0')}` : undefined })),
+            games: own.filter((r) => sections.games.has(r.id)).map((r) => r.name),
+            joined: m.joined_at ?? undefined,
+            keys: [...new Set([plainName(nameOf(m)), m.user.global_name, m.user.username].map((n) => fold(n ?? '')).filter(Boolean))],
+          },
+        ];
+      }),
+    );
+    const profileList = [...profileOf.values()].sort(byName);
+
+    const byRole = new Map<string, Profile[]>();
+    for (const role of roles) {
+      const people = listed.filter((m) => m.roles.includes(role)).map((m) => profileOf.get(m.user.id)!).sort(byName);
+      byRole.set(role, people);
+      console.log(`[discord] ${fylki.find((f) => f.discordRole === role)?.name}: ${people.length} members`);
+    }
+
     const names = (ids: Set<string>) => ordered.filter((r) => ids.has(r.id)).map((r) => r.name).join(', ') || 'none';
     console.log(`[discord] ${profileList.length} profiles, ${profileList.filter((p) => p.medals.length).length} with medals`);
     console.log(`[discord] medals: ${names(sections.medals)}`);
@@ -185,10 +237,12 @@ function roleSections(roles: GuildRole[]): Record<keyof typeof PROFILE_SECTIONS,
   return { medals: under(PROFILE_SECTIONS.medals), games: under(PROFILE_SECTIONS.games) };
 }
 
+/** The ranks of the Skjaldborg, highest first: its three ladders level by level, then the ranks every branch starts at. */
+const SHIELDWALL: Rank[] = [...shieldwall.flatMap((row) => [row.infantry, row.archers, row.civilians]), ...folk];
 /** Every rank on the Ranks page, highest first. */
-const RANKS: Rank[] = [...tiers.flatMap((t) => t.ranks), ...shieldwall.flatMap((row) => [row.infantry, row.archers, row.civilians]), ...folk];
-/** Names compared without accents and case, so the role "Lǫgmaðr" is the rank "Lögmaðr". */
-const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase();
+const RANKS: Rank[] = [...tiers.flatMap((t) => t.ranks), ...SHIELDWALL];
+/** Names compared without accents, marks, spaces and case, so the role "Lǫgmaðr" is the rank "Lögmaðr" and "✦𝑪𝒖𝒓𝒖𝒏𝒊𝒓✦" is Curunir. */
+const fold = (s: string) => s.normalize('NFKD').replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase();
 const rankNamed = (name: string) => RANKS.find((r) => fold(r.name) === fold(name));
 
 const nameOf = (m: GuildMember) => m.nick || m.user.global_name || m.user.username;

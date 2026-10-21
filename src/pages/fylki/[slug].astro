@@ -9,7 +9,7 @@ import Leadership from '../../components/Leadership.astro';
 import BackLink from '../../components/BackLink.astro';
 import Clansmen from '../../components/Clansmen.astro';
 import { DISCORD_URL, fylki, type Fylki } from '../../data/clan';
-import { clansmenWith } from '../../lib/clansmen';
+import { byTier, clansmenWith, withDiscord } from '../../lib/clansmen';
 
 export function getStaticPaths() {
   return fylki.map((f) => ({ params: { slug: f.slug }, props: { fylki: f } }));
@@ -18,6 +18,9 @@ export function getStaticPaths() {
 const { fylki: f } = Astro.props as { fylki: Fylki };
 const others = fylki.filter((o) => o.slug !== f.slug);
 const members = await clansmenWith(f.discordRole);
+// Those named in the LS show there with their Discord picture, so the member list leaves them out.
+const { ls, found } = await withDiscord(f.name, f.ls, members ?? []);
+const groups = byTier((members ?? []).filter((m) => !found.has(m.id)));
 ---
 
 <Base title={f.name} description={`${f.name}, a Fylki of The Völsung Clan in Mount & Blade II: Bannerlord.`} colors={f.colors}>
@@ -49,11 +52,11 @@ const members = await clansmenWith(f.discordRole);
 
   <section>
     <div class="wrap">
-      <Leadership name={f.name} unit="Fylki" ls={f.ls} />
+      <Leadership name={f.name} unit="Fylki" ls={ls} />
       {
-        members && members.length > 0 && (
+        groups.length > 0 && (
           <div class="people">
-            <Clansmen name={f.name} members={members} />
+            <Clansmen name={f.name} groups={groups} />
           </div>
         )
       }

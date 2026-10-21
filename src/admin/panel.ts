@@ -9,7 +9,7 @@ import { SHAPES, cutOf } from '../lib/banner-shapes';
 type Size = 'normal' | 'wide' | 'big';
 type Photo = { src: string; alt: string; size?: Size; home?: boolean };
 type Video = { url: string; title?: string; by?: string; poster?: string; home?: boolean };
-type Member = { name: string; title?: string; portrait?: string };
+type Member = { name: string; title?: string; portrait?: string; discord?: string };
 type Role = 'leaders' | 'thegns' | 'merkismadr' | 'hirdmenn';
 /** A place on the map of the Jarldom, in percent of the map's width and height from its top left corner. */
 type Spot = { x: number; y: number };
@@ -585,7 +585,13 @@ function memberRow(list: Member[], i: number, redraw: () => void) {
     'div',
     { class: 'member' },
     portrait,
-    h('div', { class: 'fields' }, input(m, 'name', { required: true, placeholder: 'Name' }), input(m, 'title', { placeholder: 'Rank or role (optional)' })),
+    h(
+      'div',
+      { class: 'fields' },
+      input(m, 'name', { required: true, placeholder: 'Name' }),
+      input(m, 'title', { placeholder: 'Rank or role (optional)' }),
+      input(m, 'discord', { placeholder: 'Discord user ID, if the name does not find them' }),
+    ),
     tools(list, i, redraw, 'member', true),
     m.portrait ? h('button', { type: 'button', class: 'link', onclick: () => (delete m.portrait, changed(), redraw()) }, 'Remove portrait') : null,
   );

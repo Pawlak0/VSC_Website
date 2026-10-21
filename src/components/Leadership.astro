@@ -1,13 +1,19 @@
 ---
 import { lsRoles, type FylkiLeadership } from '../data/clan';
+import type { Placed } from '../lib/clansmen';
 
 interface Props {
   name: string;
   unit: 'Fylki' | 'Flokkr';
-  ls: FylkiLeadership;
+  /** The LS, with each person's Clansman on Discord where one was found (withDiscord in src/lib/clansmen.ts). */
+  ls: Record<keyof FylkiLeadership, Placed[]>;
 }
 
 const { name, unit, ls } = Astro.props;
+
+// The leaders open a message to them on Discord; the others open their profile on this site.
+const linkOf = (role: keyof FylkiLeadership, m: Placed) =>
+  m.id && (role === 'leaders' ? { href: `https://discord.com/users/${m.id}`, target: '_blank', rel: 'noopener', title: `Message ${m.name} on Discord` } : { href: `/members/${m.id}/` });
 ---
 
 <div class="head" data-stagger>
@@ -24,13 +30,24 @@ const { name, unit, ls } = Astro.props;
         </header>
         <div class="members">
           {ls[role.key].length ? (
-            ls[role.key].map((m) => (
-              <div class="member">
-                {m.portrait ? <img src={m.portrait} alt={`Portrait of ${m.name}`} loading="lazy" /> : <span class="emblem" aria-hidden="true" />}
-                <b>{m.name}</b>
-                {m.title && <span>{m.title}</span>}
-              </div>
-            ))
+            ls[role.key].map((m) => {
+              const link = linkOf(role.key, m);
+              const Tag = link ? 'a' : 'div';
+              return (
+                <Tag class:list={['member', { linked: link }]} {...link}>
+                  {m.portrait ? (
+                    <img src={m.portrait} alt={`Portrait of ${m.name}`} loading="lazy" />
+                  ) : m.picture ? (
+                    <img class="face" src={m.picture} alt="" width="64" height="64" loading="lazy" />
+                  ) : (
+                    <span class="emblem" aria-hidden="true" />
+                  )}
+                  <b>{m.name}</b>
+                  {m.title && <span>{m.title}</span>}
+                  {link && role.key === 'leaders' && <span class="dm">Message on Discord ↗</span>}
+                </Tag>
+              );
+            })
           ) : (
             <p class="tba">To be announced</p>
           )}
@@ -46,11 +63,15 @@ const { name, unit, ls } = Astro.props;
   .role header { display: grid; gap: 4px; align-content: start; }
   .role header p { color: var(--muted); font-size: 16px; }
   .members { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
-  .member { display: grid; gap: 6px; justify-items: start; align-content: start; }
+  .member { display: grid; gap: 6px; justify-items: start; align-content: start; color: inherit; text-decoration: none; }
   .member img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border: 1px solid var(--line); }
+  .member img.face { width: 64px; height: 64px; aspect-ratio: 1; border-radius: 50%; margin-bottom: 4px; transition: border-color 0.2s; }
   .member .emblem { width: 28px; }
-  .member b { font-family: var(--f-display); font-size: 15px; letter-spacing: 0.06em; }
+  .member b { font-family: var(--f-display); font-size: 15px; letter-spacing: 0.06em; transition: color 0.2s; }
   .member span:not(.emblem) { color: var(--muted); font-size: 15px; }
+  .member span.dm { font-size: 13px; letter-spacing: 0.04em; color: var(--gold); }
+  .linked:hover b, .linked:focus-visible b { color: var(--gold); }
+  .linked:hover img, .linked:focus-visible img { border-color: var(--gold); }
   .tba { color: var(--muted); font-style: italic; }
-  @media (max-width: 820px) { .role { grid-template-columns: 1fr; gap: 14px; } }
+  @media (max-width: 820px) { .role { grid-template-columns: 1fr; gap: 14px; } .members { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }
 </style>
