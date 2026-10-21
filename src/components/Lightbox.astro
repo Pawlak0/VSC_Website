@@ -1,6 +1,7 @@
 ---
 // Opens gallery pictures, and any button.zoom with a data-src, full size over the page. Within a gallery the arrows,
-// the arrow keys or a swipe go to the next or previous picture.
+// the arrow keys or a swipe go to the next or previous picture. The picture grows out of the one that was clicked and
+// fades away on closing, unless the visitor asked for less motion.
 ---
 
 <dialog id="lightbox">
@@ -44,7 +45,36 @@
     const gallery = b.closest('.gallery');
     list = gallery ? Array.from(gallery.querySelectorAll<HTMLButtonElement>('button[data-src]')) : [b];
     show(list.indexOf(b));
+    // Where the clicked picture sits, measured from the middle of the screen where the dialog opens.
+    const r = b.getBoundingClientRect();
+    dlg.style.setProperty('--from-x', `${r.left + r.width / 2 - innerWidth / 2}px`);
+    dlg.style.setProperty('--from-y', `${r.top + r.height / 2 - innerHeight / 2}px`);
     dlg.showModal();
+  });
+
+  /** Closes the dialog once its fade has played; at once when the visitor asked for less motion. */
+  function shut() {
+    if (!dlg?.open || dlg.classList.contains('closing')) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return dlg.close();
+    let done = false;
+    const close = () => {
+      if (done) return;
+      done = true;
+      dlg.classList.remove('closing');
+      dlg.close();
+    };
+    dlg.classList.add('closing');
+    dlg.addEventListener('animationend', close, { once: true });
+    setTimeout(close, 400);
+  }
+  // The Close button, Escape and a click beside the picture all close it the same way.
+  dlg?.querySelector('form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    shut();
+  });
+  dlg?.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    shut();
   });
   dlg?.querySelector('.prev')?.addEventListener('click', () => show(at - 1));
   dlg?.querySelector('.next')?.addEventListener('click', () => show(at + 1));
@@ -63,13 +93,28 @@
     if (Math.abs(dx) > 50) show(at + (dx < 0 ? 1 : -1));
   });
   dlg?.addEventListener('click', (e) => {
-    if (e.target === dlg) dlg.close();
+    if (e.target === dlg) shut();
   });
 </script>
 
 <style>
   dialog { border: 1px solid var(--line); background: var(--pitch); padding: 8px; max-width: min(1400px, 94vw); color: var(--ink); }
   dialog::backdrop { background: rgba(0, 0, 0, 0.85); }
+  @media (prefers-reduced-motion: no-preference) {
+    dialog[open] { animation: lb-grow 0.35s cubic-bezier(0.2, 0.8, 0.25, 1); }
+    dialog[open]::backdrop { animation: lb-fade 0.35s ease-out; }
+    dialog.closing { animation: lb-shrink 0.2s ease-in forwards; }
+    dialog.closing::backdrop { animation: lb-fade 0.2s ease-in reverse forwards; }
+  }
+  @keyframes lb-grow {
+    from { opacity: 0; transform: translate(var(--from-x, 0), var(--from-y, 0)) scale(0.25); }
+  }
+  @keyframes lb-shrink {
+    to { opacity: 0; transform: scale(0.95); }
+  }
+  @keyframes lb-fade {
+    from { opacity: 0; }
+  }
   .stage { position: relative; }
   dialog img { display: block; max-width: 100%; max-height: 82vh; touch-action: pan-y; user-select: none; }
   .step {
