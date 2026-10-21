@@ -67,7 +67,7 @@ type ClanBanner = { banner?: string; shape?: string };
 type Site = { banners?: { clan?: ClanBanner; poles?: boolean } };
 /** The words and pictures of the home page, the Jarldom and Ranks pages, and what Google shows (texts.json). */
 type Texts = {
-  google: { title: string; description: string };
+  google: { title: string; description: string; picture?: string };
   hero: { picture?: string; alt?: string; eyebrow?: string; text?: string; facts?: string[] };
   about: { eyebrow?: string; title: string; text?: string; pillars?: { name: string; text?: string; image?: string; alt?: string; video?: string }[] };
   week: { title: string; text?: string; events?: { day: string; name: string; text?: string; monthly?: boolean }[] };
@@ -354,14 +354,15 @@ function uniqueValue(dir: string, name: string, ext: string) {
 /** Shrinks a picked file and keeps it for the next save. Returns the value to write in the data.
  *  A background (across the whole screen) and a picture of a page (Texts tab) are saved as WebP, which is much
  *  smaller at the same look; a browser that cannot write WebP (Safari) saves a JPEG instead. */
-async function addPicture(file: File, kind: 'photo' | 'banner' | 'portrait' | 'map' | 'background' | 'picture', name = file.name) {
+async function addPicture(file: File, kind: 'photo' | 'banner' | 'portrait' | 'map' | 'background' | 'picture' | 'share', name = file.name) {
   const png = kind === 'banner';
+  // The shared picture is a JPEG, which every app that shows link previews reads.
   const site = kind === 'background' || kind === 'picture';
-  const width = kind === 'photo' || kind === 'map' || kind === 'background' ? 2560 : kind === 'picture' ? 1600 : 900;
+  const width = kind === 'photo' || kind === 'map' || kind === 'background' ? 2560 : kind === 'picture' ? 1600 : kind === 'share' ? 1200 : 900;
   let blob = await shrink(file, width, png ? 'image/png' : site ? 'image/webp' : 'image/jpeg');
   if (site && blob.type !== 'image/webp') blob = await shrink(file, width, 'image/jpeg');
   const ext = png ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
-  const value = uniqueValue(kind === 'photo' ? GALLERY : site ? SITE_IMG : FYLKI_IMG, slugify(name), ext);
+  const value = uniqueValue(kind === 'photo' ? GALLERY : site || kind === 'share' ? SITE_IMG : FYLKI_IMG, slugify(name), ext);
   uploads.set(repoPath(value), blob);
   previews.set(value, URL.createObjectURL(blob));
   return value;
@@ -388,7 +389,7 @@ function pictures(d: Data): Set<string> {
   d.pages?.map?.markers?.forEach((m) => add(m.banner));
   add(d.site?.banners?.clan?.banner);
   const t = d.texts;
-  [t?.hero?.picture, t?.join?.picture, t?.ranks?.hall?.picture].forEach(add);
+  [t?.google?.picture, t?.hero?.picture, t?.join?.picture, t?.ranks?.hall?.picture].forEach(add);
   t?.about?.pillars?.forEach((p) => add(p.image));
   t?.media?.games?.forEach((g) => add(g.image));
   return out;
@@ -1497,7 +1498,7 @@ function part(title: string, hint: string, build: (redraw: () => void) => Kid[])
 }
 
 /** A picture of a page with its Upload, Replace and Remove buttons. */
-function pagePicture(obj: Record<string, any>, key: string, kind: 'background' | 'picture', fileName: string, hint: string, redraw: () => void, removable = true) {
+function pagePicture(obj: Record<string, any>, key: string, kind: 'background' | 'picture' | 'share', fileName: string, hint: string, redraw: () => void, removable = true) {
   const img = h('img', { alt: '' });
   showImage(img, obj[key]);
   const pick = () =>
@@ -1531,18 +1532,24 @@ function rows<T>(list: T[], row: (item: T, i: number) => Kid[], add: () => T, wh
   );
 }
 
-/** How the home page shows in Google, redrawn while the title and description are typed. */
+/** How the home page shows in Google, with the site icon and the picture, redrawn while the title and description are
+ * typed. */
 function googlePreview(g: Texts['google']) {
-  const title = h('b');
-  const text = h('span');
+  const title = h('b', { class: 'title' });
+  const text = h('span', { class: 'text' });
+  const thumb = h('img', { class: 'thumb', alt: '' });
   const counts = h('small');
+  let shown: string | undefined;
   const draw = () => {
     title.textContent = g.title;
     text.textContent = g.description;
     counts.textContent = `Title ${g.title.length} characters, description ${g.description.length}. Google shows about 60 of the title and 155 of the description; the rest is cut off with …, but still counts in searches.`;
+    if (g.picture !== shown) showImage(thumb, (shown = g.picture));
+    thumb.hidden = !g.picture;
   };
   draw();
-  return { preview: h('div', { class: 'google-preview' }, h('span', {}, 'volsungclan.com'), title, text), counts, draw };
+  const site = h('div', { class: 'site' }, h('img', { src: '/favicon-144.png', alt: '' }), h('b', {}, 'The Völsung Clan'), h('span', {}, 'https://volsungclan.com'));
+  return { preview: h('div', { class: 'google-preview' }, site, title, text, thumb), counts, draw };
 }
 
 function textsView() {
@@ -1590,11 +1597,12 @@ function textsView() {
         h('p', {}, 'The words and pictures of the home page, the Jarldom and Ranks pages, and what Google shows. Each part folds open. A field left empty is left off the site, except the ones marked red when empty.'),
       ),
     ),
-    part('Google', 'The title and description Google shows for the home page, and Discord when someone shares the link. Google picks up a change some days after it is saved; Search Console, URL inspection, Request indexing makes it sooner.', () => [
-      g.preview,
+    part('Google', 'The title, description and picture Google shows for the home page, and Discord when someone shares a link to the site. The round icon is the site icon, the clan serpent. Google picks up a change some days after it is saved; Search Console, URL inspection, Request indexing makes it sooner.', (redraw) => [
+      (g.draw(), g.preview),
       field('Title', googleTitle),
       field('Description', googleText),
       g.counts,
+      pagePicture(t.google, 'picture', 'share', 'share-picture', 'Beside the result in Google, and the big picture under a shared link on Discord. A wide picture, best 1200 × 630 pixels, with what matters in the middle: Google cuts a square out of it. Google may still pick another picture of the page.', redraw, false),
     ]),
     part('Home page: top', 'The first screen of the home page, over the background picture.', (redraw) => [
       pagePicture(t.hero, 'picture', 'background', 'home-background', 'Across the whole screen, so a wide picture (16:9) at least 1920 pixels across. The text sits on the left, so keep what matters on the right.', redraw, false),
