@@ -66,10 +66,14 @@ jobs:
         env:
           DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          # Optional: lets the hourly cron start a rebuild of the website.
+          SITE_REBUILD_TOKEN: ${{ secrets.SITE_REBUILD_TOKEN }}
         run: |
           test -n "$DISCORD_CLIENT_SECRET" || { echo "::error::The DISCORD_CLIENT_SECRET secret is missing"; exit 1; }
           test -n "$DISCORD_BOT_TOKEN" || { echo "::error::The DISCORD_BOT_TOKEN secret is missing"; exit 1; }
           secrets="$RUNNER_TEMP/secrets.json"
           trap 'rm -f "$secrets"' EXIT
-          jq -n '{DISCORD_CLIENT_SECRET: env.DISCORD_CLIENT_SECRET, DISCORD_BOT_TOKEN: env.DISCORD_BOT_TOKEN}' > "$secrets"
+          jq -n '{DISCORD_CLIENT_SECRET: env.DISCORD_CLIENT_SECRET, DISCORD_BOT_TOKEN: env.DISCORD_BOT_TOKEN}
+            + if (env.SITE_REBUILD_TOKEN // "") != "" then {SITE_REBUILD_TOKEN: env.SITE_REBUILD_TOKEN} else {} end' > "$secrets"
+          test -n "$SITE_REBUILD_TOKEN" || echo "::warning::No SITE_REBUILD_TOKEN secret, so the website is rebuilt only when GitHub's own schedule runs"
           npx wrangler deploy --secrets-file "$secrets"

@@ -20,6 +20,12 @@ export interface Env {
   DISCORD_AUTHORIZE: string;
   DISCORD_CLIENT_SECRET: string;
   DISCORD_BOT_TOKEN: string;
+  GITHUB_API: string;
+  /** The website's repository and its build workflow, rebuilt every hour. */
+  SITE_REPO: string;
+  SITE_WORKFLOW: string;
+  /** A GitHub token that may only start that repository's workflows; without it the hourly rebuild is skipped. */
+  SITE_REBUILD_TOKEN?: string;
 }
 
 // The session cookie belongs to this API alone and scripts on the page cannot read it (__Host-, HttpOnly). The hint
@@ -175,6 +181,27 @@ async function deleteAccount(req: Request, env: Env): Promise<Response> {
   return respond(env, null, 204, signedOut(env));
 }
 
+/** Asks GitHub to rebuild the website, which reads the Fylki members, the Discord counts and the calendar afresh.
+ * GitHub's own hourly schedule for that skips most hours; this cron does not. */
+async function rebuildSite(env: Env): Promise<void> {
+  if (!env.SITE_REBUILD_TOKEN) return;
+  try {
+    const res = await fetch(`${env.GITHUB_API}/repos/${env.SITE_REPO}/actions/workflows/${env.SITE_WORKFLOW}/dispatches`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.SITE_REBUILD_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'vsc-api (https://volsungclan.com)',
+      },
+      body: JSON.stringify({ ref: 'main' }),
+    });
+    if (!res.ok) console.warn('Site rebuild not started: GitHub answered', res.status);
+  } catch (e) {
+    console.warn('Site rebuild not started:', e instanceof Error ? e.message : e);
+  }
+}
+
 export default {
   async fetch(req, env, ctx): Promise<Response> {
     const url = new URL(req.url);
@@ -207,9 +234,10 @@ export default {
     }
   },
 
-  // Hourly: tidy up, then ask the bot about up to 40 members whose role was last confirmed over a day ago. Anyone
-  // without the role is signed out and frozen; the tidy-up deletes them 4 months later.
-  async scheduled(_event, env): Promise<void> {
+  // Hourly: start a rebuild of the website, tidy up, then ask the bot about up to 40 members whose role was last
+  // confirmed over a day ago. Anyone without the role is signed out and frozen; the tidy-up deletes them 4 months later.
+  async scheduled(_event, env, ctx): Promise<void> {
+    ctx.waitUntil(rebuildSite(env));
     const now = Date.now();
     await tidy(env.DB, now);
     for (const id of await dueForCheck(env.DB, now, 40)) {

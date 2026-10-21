@@ -5,7 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-  # Rebuild every hour so the Discord counts, the calendar and the Fylki members stay fresh.
+  # Rebuild every hour so the Discord counts, the calendar and the Fylki members stay fresh. GitHub skips many of these
+  # runs, so the API's hourly cron also starts this workflow (SITE_REBUILD_TOKEN, see the README).
   schedule:
     - cron: '17 * * * *'
 
