@@ -104,7 +104,7 @@ async function read(token?: string): Promise<Lists | null> {
       ...listed.map((m) => () => copy('members', m.user.id, avatarUrl(m), PICTURE)),
       ...medalRoles.map((r) => () => copy('medals', r.id, `${CDN}/role-icons/${r.id}/${r.icon}.png?size=128`, MEDAL)),
     ];
-    for (let i = 0; i < jobs.length; i += 10) await Promise.all(jobs.slice(i, i + 10).map((job) => job()));
+    for (let i = 0; i < jobs.length; i += 25) await Promise.all(jobs.slice(i, i + 25).map((job) => job()));
 
     const clansman = (m: GuildMember): Clansman => ({ id: m.user.id, name: nameOf(m), picture: pictureOf.get(`members/${m.user.id}`) });
     const byName = (a: Clansman, b: Clansman) => sortKey(a.name).localeCompare(sortKey(b.name), 'en');
@@ -137,7 +137,10 @@ async function read(token?: string): Promise<Lists | null> {
         };
       })
       .sort(byName);
-    console.log(`[discord] ${profileList.length} profiles, ${sections.medals.size} medals on the server`);
+    const names = (ids: Set<string>) => ordered.filter((r) => ids.has(r.id)).map((r) => r.name).join(', ') || 'none';
+    console.log(`[discord] ${profileList.length} profiles, ${profileList.filter((p) => p.medals.length).length} with medals`);
+    console.log(`[discord] medals: ${names(sections.medals)}`);
+    console.log(`[discord] other games: ${names(sections.games)}`);
     return { byRole, profiles: profileList, pictures };
   } catch (e) {
     console.warn(`[discord] members not loaded, the Fylki pages leave them out and there are no profiles: ${(e as Error).message}`);
