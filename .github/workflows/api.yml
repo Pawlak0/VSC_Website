@@ -68,12 +68,24 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           # Optional: lets the hourly cron start a rebuild of the website.
           SITE_REBUILD_TOKEN: ${{ secrets.SITE_REBUILD_TOKEN }}
+          # Optional: the Sesh calendar feed, so the home page can show event changes between rebuilds.
+          SESH_ICS_URL: ${{ secrets.SESH_ICS_URL }}
         run: |
           test -n "$DISCORD_CLIENT_SECRET" || { echo "::error::The DISCORD_CLIENT_SECRET secret is missing"; exit 1; }
           test -n "$DISCORD_BOT_TOKEN" || { echo "::error::The DISCORD_BOT_TOKEN secret is missing"; exit 1; }
           secrets="$RUNNER_TEMP/secrets.json"
           trap 'rm -f "$secrets"' EXIT
           jq -n '{DISCORD_CLIENT_SECRET: env.DISCORD_CLIENT_SECRET, DISCORD_BOT_TOKEN: env.DISCORD_BOT_TOKEN}
-            + if (env.SITE_REBUILD_TOKEN // "") != "" then {SITE_REBUILD_TOKEN: env.SITE_REBUILD_TOKEN} else {} end' > "$secrets"
+            + if (env.SITE_REBUILD_TOKEN // "") != "" then {SITE_REBUILD_TOKEN: env.SITE_REBUILD_TOKEN} else {} end
+            + if (env.SESH_ICS_URL // "") != "" then {SESH_ICS_URL: env.SESH_ICS_URL} else {} end' > "$secrets"
           test -n "$SITE_REBUILD_TOKEN" || echo "::warning::No SITE_REBUILD_TOKEN secret, so the website is rebuilt only when GitHub's own schedule runs"
           npx wrangler deploy --secrets-file "$secrets"
+      - name: Check that the calendar answers
+        working-directory: .
+        run: |
+          sleep 15
+          if n=$(curl -fsS https://api.volsungclan.com/events | jq '.events | length'); then
+            echo "The API serves $n upcoming events"
+          else
+            echo "::warning::GET /events did not answer; the home page keeps the events it was built with"
+          fi
