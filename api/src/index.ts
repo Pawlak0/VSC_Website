@@ -185,6 +185,8 @@ export default {
       switch (`${req.method} ${url.pathname}`) {
         case 'GET /':
           return redirect(env.SITE);
+        case 'GET /robots.txt':
+          return new Response('User-agent: *\nDisallow: /\n', { headers: { ...baseHeaders, 'Content-Type': 'text/plain' } });
         case 'GET /auth/login':
           return await login(req, url, env);
         case 'GET /auth/callback':
