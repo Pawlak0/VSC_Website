@@ -1,7 +1,8 @@
 {
   "google": {
     "title": "The Völsung Clan (VSC) · Viking clan in Mount & Blade II: Bannerlord",
-    "description": "VSC, The Völsung Clan: a Viking clan in Mount & Blade II: Bannerlord. Big events, Persistent Bannerlord and more. EU-based and newcomer friendly."
+    "description": "VSC, The Völsung Clan: a Viking clan in Mount & Blade II: Bannerlord. Big events, Persistent Bannerlord and more. EU-based and newcomer friendly.",
+    "picture": "/img/og.jpg"
   },
   "hero": {
     "picture": "/img/hero-snow-shieldwall.webp",

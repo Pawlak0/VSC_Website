@@ -276,10 +276,17 @@ const tokenPage = 'https://github.com/settings/tokens/new?scopes=public_repo&des
   .page-pic .pic.empty span { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
   .page-pic small { font-size: 12px; color: var(--muted); }
   /* Roughly how Google lists the home page. */
-  .google-preview { display: grid; gap: 4px; max-width: 640px; padding: 14px 16px; background: #1f1f1f; border: 1px solid var(--line); font-family: Arial, sans-serif; }
-  .google-preview span:first-child { font-size: 13px; color: #bdc1c6; }
-  .google-preview b { font-size: 20px; font-weight: 400; color: #99c3ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .google-preview span:last-child { font-size: 14px; line-height: 1.5; color: #bdc1c6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .google-preview { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; row-gap: 4px; max-width: 640px; padding: 14px 16px; background: #1f1f1f; border: 1px solid var(--line); font-family: Arial, sans-serif; }
+  .google-preview .site { grid-column: 1 / -1; display: grid; grid-template-columns: 28px auto; column-gap: 12px; align-items: center; justify-content: start; margin-bottom: 4px; }
+  .google-preview .site img { grid-row: span 2; width: 28px; height: 28px; border-radius: 50%; }
+  .google-preview .site b { font-size: 14px; font-weight: 400; color: #dadce0; }
+  .google-preview .site span { font-size: 12px; color: #bdc1c6; }
+  .google-preview .title { font-size: 20px; font-weight: 400; color: #99c3ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .google-preview .text { grid-column: 1; font-size: 14px; line-height: 1.5; color: #bdc1c6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .google-preview .thumb { grid-column: 2; grid-row: 2 / span 2; align-self: start; width: 92px; height: 92px; border-radius: 8px; object-fit: cover; }
+  .google-preview .thumb[hidden] { display: none; }
+  .page-pic.share { width: min(100%, 320px); }
+  .page-pic.share .pic { aspect-ratio: 1200 / 630; }
   @media (max-width: 760px) { .text-rows.cards .text-row > .body { grid-template-columns: minmax(0, 1fr); } }
 
   dialog.picker { width: min(1100px, 92vw); max-height: 86vh; background: var(--pitch); color: var(--ink); border: 1px solid var(--line); padding: 20px; }

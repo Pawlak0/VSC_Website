@@ -1,11 +1,12 @@
 ---
 import '../styles/global.css';
 import { DISCORD_URL, bannerLook, fylki, jarldomMap, news, glowOf, texts, type BannerColors } from '../data/clan';
+import { pictureSize } from '../lib/picture-size';
 
 interface Props {
   title?: string;
   description?: string;
-  /** The picture shown when the page is shared, e.g. on Discord. */
+  /** The picture shown when the page is shared, e.g. on Discord. Without one, the picture set in the site panel. */
   image?: string;
   /** For a page search engines should leave out, such as the one for a missing address. */
   noindex?: boolean;
@@ -16,7 +17,7 @@ interface Props {
 const {
   title,
   description = texts.google.description,
-  image = '/img/og.jpg',
+  image = texts.google.picture || '/img/og.jpg',
   noindex = false,
   colors,
 } = Astro.props;
@@ -25,6 +26,7 @@ const {
 const fullTitle = title ? `${title} · The Völsung Clan` : texts.google.title;
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 const ogImage = new URL(image, Astro.site).toString();
+const ogSize = await pictureSize(image);
 const isHome = Astro.url.pathname === '/';
 // Events lead to the home page; the Jarldom, Ranks, Media and each Fylki are pages of their own, and so are News and
 // the map once they are turned on in the site panel.
@@ -50,9 +52,12 @@ const clanData = {
       alternateName: 'VSC',
       url: Astro.site?.toString(),
       logo: new URL('/apple-touch-icon.png', Astro.site).toString(),
+      image: ogImage,
       description,
       sameAs: [DISCORD_URL],
     },
+    // The picture Google is asked to show beside the home page; it still picks one itself.
+    { '@type': 'WebPage', url: canonical, name: fullTitle, primaryImageOfPage: { '@type': 'ImageObject', url: ogImage } },
   ],
 };
 ---
@@ -66,6 +71,7 @@ const clanData = {
     <meta name="description" content={description} />
     {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
     <link rel="sitemap" href="/sitemap.xml" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <!-- Google shows an icon in its results only when it is a multiple of 48px. -->
     <link rel="icon" type="image/png" sizes="144x144" href="/favicon-144.png" />
@@ -76,6 +82,8 @@ const clanData = {
     <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImage} />
+    {ogSize.width && <meta property="og:image:width" content={String(ogSize.width)} />}
+    {ogSize.height && <meta property="og:image:height" content={String(ogSize.height)} />}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#0d0d0c" />
     {isHome && <script type="application/ld+json" set:html={JSON.stringify(clanData)} />}
