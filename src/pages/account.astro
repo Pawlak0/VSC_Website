@@ -83,7 +83,7 @@ import { loginUrl } from '../lib/members';
       if (!me) return show('out');
       box.querySelector<HTMLImageElement>('.who img')!.src = me.avatar;
       box.querySelector('.name')!.textContent = me.name;
-      const since = new Date(me.memberSince).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+      const since = new Date(me.memberSince).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
       box.querySelector('.since')!.textContent = `Völsung Clansman · signed in here since ${since}`;
       show('in');
     } catch {
