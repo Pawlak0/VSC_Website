@@ -1,4 +1,4 @@
-// The site panel at /admin/. It edits src/data/photos.json, videos.json, fylki.json, pages.json and site.json, the same files
+// The site panel at /admin/. It edits src/data/photos.json, videos.json, fylki.json, pages.json, site.json and texts.json, the same files
 // the site is built from, and saves them with any new pictures as one commit on main; the site then rebuilds by itself.
 import { GitHub, GitHubError, OWNER, REPO, type Change } from './github';
 import { shrink, slugify } from './images';
@@ -63,10 +63,22 @@ type Pages = {
 type ClanBanner = { banner?: string; shape?: string };
 /** Settings for the whole site: the clan's own banner, and poles over every banner. */
 type Site = { banners?: { clan?: ClanBanner; poles?: boolean } };
-type Data = { photos: Photo[]; videos: Video[]; fylki: Fylki[]; pages: Pages; site: Site };
+/** The words and pictures of the home page, the Jarldom and Ranks pages, and what Google shows (texts.json). */
+type Texts = {
+  google: { title: string; description: string };
+  hero: { picture?: string; alt?: string; eyebrow?: string; text?: string; facts?: string[] };
+  about: { eyebrow?: string; title: string; text?: string; pillars?: { name: string; text?: string; image?: string; alt?: string; video?: string }[] };
+  week: { title: string; text?: string; events?: { day: string; name: string; text?: string; monthly?: boolean }[] };
+  media: { eyebrow?: string; title: string; gamesText?: string; games?: { name: string; image?: string }[] };
+  faq: { eyebrow?: string; title: string; questions?: { q: string; a: string }[] };
+  join: { picture?: string; eyebrow?: string; title: string; text?: string; steps?: { title: string; text?: string }[] };
+  jarldom: { text?: string };
+  ranks: { text?: string; hall: { picture?: string; alt?: string; eyebrow?: string; title: string; text?: string } };
+};
+type Data = { photos: Photo[]; videos: Video[]; fylki: Fylki[]; pages: Pages; site: Site; texts: Texts };
 type Key = keyof Data;
-type Tab = 'photos' | 'videos' | 'fylki' | 'news' | 'map';
-const TABS: Tab[] = ['photos', 'videos', 'fylki', 'news', 'map'];
+type Tab = 'photos' | 'videos' | 'fylki' | 'news' | 'map' | 'texts';
+const TABS: Tab[] = ['photos', 'videos', 'fylki', 'news', 'map', 'texts'];
 
 const FILES: Record<Key, string> = {
   photos: 'src/data/photos.json',
@@ -74,8 +86,9 @@ const FILES: Record<Key, string> = {
   fylki: 'src/data/fylki.json',
   pages: 'src/data/pages.json',
   site: 'src/data/site.json',
+  texts: 'src/data/texts.json',
 };
-const NAMES: Record<Key, string> = { photos: 'photos', videos: 'videos', fylki: 'Fylki', pages: 'pages', site: 'banner settings' };
+const NAMES: Record<Key, string> = { photos: 'photos', videos: 'videos', fylki: 'Fylki', pages: 'pages', site: 'banner settings', texts: 'texts' };
 const KEYS = Object.keys(FILES) as Key[];
 const ROLES: [Role, string][] = [
   ['leaders', 'Leadership'],
@@ -86,12 +99,14 @@ const ROLES: [Role, string][] = [
 // Photos are built into small copies, so they live in src/; banners, portraits and the map are served as they are.
 const GALLERY = '/src/assets/gallery/';
 const FYLKI_IMG = '/img/fylki/';
+/** Backgrounds and other pictures of the pages, from the Texts tab. */
+const SITE_IMG = '/img/site/';
 const TOKEN_KEY = 'vsc-panel-token';
 const TAB_KEY = 'vsc-panel-tab';
 const COLS_KEY = 'vsc-panel-cols';
 
 const repoPath = (value: string) => (value.startsWith(GALLERY) ? value.slice(1) : `public${value}`);
-const managed = (value?: string) => !!value && (value.startsWith(GALLERY) || value.startsWith(FYLKI_IMG));
+const managed = (value?: string) => !!value && (value.startsWith(GALLERY) || value.startsWith(FYLKI_IMG) || value.startsWith(SITE_IMG));
 const serialize = (v: unknown) => JSON.stringify(v, null, 2) + '\n';
 const slugOf = (u: Flokkr) => pageSlug(u.slug || u.name);
 /** Every Fylki and Flokkr; they have the same pictures and required fields. */
@@ -127,7 +142,7 @@ let gh: GitHub;
 let login = '';
 /** The commit the panel last loaded or saved; a save builds on it. */
 let base = '';
-let data: Data = { photos: [], videos: [], fylki: [], pages: { news: { posts: [] }, map: {} }, site: {} };
+let data = { photos: [], videos: [], fylki: [], pages: { news: { posts: [] }, map: {} }, site: {}, texts: {} } as unknown as Data;
 /** Each data file as it is on GitHub at `base`, to tell what changed. */
 const saved = {} as Record<Key, string>;
 /** Files in the picture folders on GitHub, as repo paths. */
@@ -334,11 +349,17 @@ function uniqueValue(dir: string, name: string, ext: string) {
   return value;
 }
 
-/** Shrinks a picked file and keeps it for the next save. Returns the value to write in the data. */
-async function addPicture(file: File, kind: 'photo' | 'banner' | 'portrait' | 'map', name = file.name) {
+/** Shrinks a picked file and keeps it for the next save. Returns the value to write in the data.
+ *  A background (across the whole screen) and a picture of a page (Texts tab) are saved as WebP, which is much
+ *  smaller at the same look; a browser that cannot write WebP (Safari) saves a JPEG instead. */
+async function addPicture(file: File, kind: 'photo' | 'banner' | 'portrait' | 'map' | 'background' | 'picture', name = file.name) {
   const png = kind === 'banner';
-  const blob = await shrink(file, kind === 'photo' || kind === 'map' ? 2560 : 900, png ? 'image/png' : 'image/jpeg');
-  const value = uniqueValue(kind === 'photo' ? GALLERY : FYLKI_IMG, slugify(name), png ? 'png' : 'jpg');
+  const site = kind === 'background' || kind === 'picture';
+  const width = kind === 'photo' || kind === 'map' || kind === 'background' ? 2560 : kind === 'picture' ? 1600 : 900;
+  let blob = await shrink(file, width, png ? 'image/png' : site ? 'image/webp' : 'image/jpeg');
+  if (site && blob.type !== 'image/webp') blob = await shrink(file, width, 'image/jpeg');
+  const ext = png ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+  const value = uniqueValue(kind === 'photo' ? GALLERY : site ? SITE_IMG : FYLKI_IMG, slugify(name), ext);
   uploads.set(repoPath(value), blob);
   previews.set(value, URL.createObjectURL(blob));
   return value;
@@ -364,6 +385,10 @@ function pictures(d: Data): Set<string> {
   add(d.pages?.map?.picture);
   d.pages?.map?.markers?.forEach((m) => add(m.banner));
   add(d.site?.banners?.clan?.banner);
+  const t = d.texts;
+  [t?.hero?.picture, t?.join?.picture, t?.ranks?.hall?.picture].forEach(add);
+  t?.about?.pillars?.forEach((p) => add(p.image));
+  t?.media?.games?.forEach((g) => add(g.image));
   return out;
 }
 
@@ -925,7 +950,7 @@ function bannerSettings() {
   );
 }
 
-/** The clan's own banner, over the Fylki on the home page and on the map: its picture and its shape, folded away. */
+/** The clan's own banner, over the Fylki on the Jarldom page and on the map: its picture and its shape, folded away. */
 function clanBannerForm() {
   const box = h('div', { class: 'panel-box basics clan-banner' });
   const redraw = () => {
@@ -935,7 +960,7 @@ function clanBannerForm() {
       h(
         'div',
         { class: 'fields' },
-        h('small', {}, 'Over the Fylki on the home page and on the map. Without a picture the site draws it in black and white.'),
+        h('small', {}, 'Over the Fylki on the Jarldom page and on the map. Without a picture the site draws it in black and white.'),
         h('div', { class: 'field' }, h('span', { class: 'label' }, 'Shape of the banner'), shapePicker(clan, 'shape', { ...clan, main: true }, redraw)),
       ),
     );
@@ -952,7 +977,7 @@ function fylkiView() {
   return h(
     'section',
     {},
-    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Fylki'), h('p', {}, 'Each Fylki has its own page. The order here is the order on the home page and in the menu.')), bannerSettings()),
+    h('div', { class: 'bar' }, h('div', {}, h('h2', {}, 'Fylki'), h('p', {}, 'Each Fylki has its own page. The order here is the order on the Jarldom page and in the menu.')), bannerSettings()),
     flokkrIndex === null ? clanBannerForm() : null,
     h(
       'div',
@@ -1064,7 +1089,7 @@ function newsView() {
         'div',
         {},
         h('h2', {}, 'News'),
-        h('p', {}, 'Posts on the News page, the newest first, each with a page of its own. The three newest also show on the home page. While News is off, none of it is on the site.'),
+        h('p', {}, 'Posts on the News page, the newest first, each with a page of its own. While News is off, none of it is on the site.'),
       ),
       h('div', { class: 'add switch' }, toggle(news, 'on', 'On the site', redraw), h('button', { type: 'button', class: 'btn btn-gold', onclick: add }, 'Add post')),
     ),
@@ -1348,7 +1373,7 @@ function mapView() {
             'div',
             {},
             h('h2', {}, 'Map of the Jarldom'),
-            h('p', {}, 'A page with the banners of the clan, its Fylki and Flokkr on their lands; a click on a banner opens its page. While it is on, the menu at the top and the home page link to it.'),
+            h('p', {}, 'A page with the banners of the clan, its Fylki and Flokkr on their lands; a click on a banner opens its page. While it is on, the menu at the top and the Jarldom page link to it.'),
           ),
           h('div', { class: 'add switch' }, toggle(map, 'on', 'On the site')),
         ),
@@ -1425,6 +1450,223 @@ function mapView() {
   return view;
 }
 
+// ---------- texts and pictures of the pages ----------
+
+const DAYS: [string, string][] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => [d, d]);
+/** The parts of the Texts tab folded open, kept while the panel is open. */
+const openParts = new Set<string>(['Google']);
+
+function textsMissing(t?: Texts) {
+  if (!t) return false;
+  const blank = (v?: string) => !v?.trim();
+  return (
+    blank(t.google?.title) ||
+    blank(t.google?.description) ||
+    [t.about, t.week, t.media, t.faq, t.join, t.ranks?.hall].some((part) => blank(part?.title)) ||
+    (t.about?.pillars ?? []).some((p) => blank(p.name)) ||
+    (t.week?.events ?? []).some((e) => blank(e.name)) ||
+    (t.media?.games ?? []).some((g) => blank(g.name)) ||
+    (t.faq?.questions ?? []).some((q) => blank(q.q) || blank(q.a)) ||
+    (t.join?.steps ?? []).some((s) => blank(s.title))
+  );
+}
+
+/** One part of a page, folded; `build` draws its fields and is called again whenever a list in it changes. */
+function part(title: string, hint: string, build: (redraw: () => void) => Kid[]) {
+  const box = h('div', { class: 'panel-box' });
+  const redraw = () => box.replaceChildren(...present(hint ? h('p', { class: 'meta' }, hint) : null, ...build(redraw)));
+  redraw();
+  const fold = h('details', { class: 'text-part', open: openParts.has(title) }, h('summary', {}, title), box);
+  fold.addEventListener('toggle', () => (fold.open ? openParts.add(title) : openParts.delete(title)));
+  return fold;
+}
+
+/** A picture of a page with its Upload, Replace and Remove buttons. */
+function pagePicture(obj: Record<string, any>, key: string, kind: 'background' | 'picture', fileName: string, hint: string, redraw: () => void, removable = true) {
+  const img = h('img', { alt: '' });
+  showImage(img, obj[key]);
+  const pick = () =>
+    pickFiles(false, async ([file]) => {
+      if (!file) return;
+      obj[key] = await addPicture(file, kind, fileName);
+      changed();
+      redraw();
+    });
+  return h(
+    'div',
+    { class: `page-pic ${kind}` },
+    h('div', { class: `pic${obj[key] ? '' : ' empty'}` }, obj[key] ? img : h('span', {}, 'No picture')),
+    h(
+      'div',
+      { class: 'tools' },
+      h('button', { type: 'button', onclick: pick }, obj[key] ? 'Replace' : 'Upload'),
+      obj[key] && removable ? h('button', { type: 'button', class: 'remove', onclick: () => (delete obj[key], changed(), redraw()) }, 'Remove') : null,
+    ),
+    h('small', {}, hint),
+  );
+}
+
+/** A list in a part: its rows, and a button that adds one. */
+function rows<T>(list: T[], row: (item: T, i: number) => Kid[], add: () => T, what: string, redraw: () => void, cls = '') {
+  return h(
+    'div',
+    { class: `text-rows ${cls}` },
+    ...list.map((item, i) => h('div', { class: 'text-row' }, h('div', { class: 'body' }, ...present(...row(item, i))), tools(list, i, redraw, what, true))),
+    h('button', { type: 'button', class: 'btn btn-ghost small', onclick: () => (list.push(add()), changed(), redraw()) }, `Add ${what}`),
+  );
+}
+
+/** How the home page shows in Google, redrawn while the title and description are typed. */
+function googlePreview(g: Texts['google']) {
+  const title = h('b');
+  const text = h('span');
+  const counts = h('small');
+  const draw = () => {
+    title.textContent = g.title;
+    text.textContent = g.description;
+    counts.textContent = `Title ${g.title.length} characters, description ${g.description.length}. Google shows about 60 of the title and 155 of the description; the rest is cut off with …, but still counts in searches.`;
+  };
+  draw();
+  return { preview: h('div', { class: 'google-preview' }, h('span', {}, 'volsungclan.com'), title, text), counts, draw };
+}
+
+function textsView() {
+  const t = data.texts;
+  const g = googlePreview(t.google);
+  const googleTitle = input(t.google, 'title', { required: true });
+  const googleText = input(t.google, 'description', { required: true, area: 3 });
+  googleTitle.addEventListener('input', g.draw);
+  googleText.addEventListener('input', g.draw);
+  const facts = (t.hero.facts ??= []);
+  const pillars = (t.about.pillars ??= []);
+  const events = (t.week.events ??= []);
+  const games = (t.media.games ??= []);
+  const questions = (t.faq.questions ??= []);
+  const steps = (t.join.steps ??= []);
+  const factInput = (i: number) =>
+    h('input', {
+      value: facts[i],
+      placeholder: 'e.g. 3+ weekly events',
+      oninput: (e: Event) => ((facts[i] = (e.target as HTMLInputElement).value), changed()),
+    });
+  const videoInput = (p: (typeof pillars)[number]) =>
+    h('input', {
+      value: p.video ? `https://youtu.be/${p.video}` : '',
+      placeholder: 'https://www.youtube.com/watch?v=…',
+      oninput: (e: Event) => {
+        const el = e.target as HTMLInputElement;
+        const id = videoId(el.value.trim());
+        el.classList.toggle('invalid', !!el.value.trim() && !id);
+        if (id) p.video = id;
+        else delete p.video;
+        changed();
+      },
+    });
+  return h(
+    'section',
+    { class: 'texts-view' },
+    h(
+      'div',
+      { class: 'bar' },
+      h(
+        'div',
+        {},
+        h('h2', {}, 'Texts and pictures'),
+        h('p', {}, 'The words and pictures of the home page, the Jarldom and Ranks pages, and what Google shows. Each part folds open. A field left empty is left off the site, except the ones marked red when empty.'),
+      ),
+    ),
+    part('Google', 'The title and description Google shows for the home page, and Discord when someone shares the link. Google picks up a change some days after it is saved; Search Console, URL inspection, Request indexing makes it sooner.', () => [
+      g.preview,
+      field('Title', googleTitle),
+      field('Description', googleText),
+      g.counts,
+    ]),
+    part('Home page: top', 'The first screen of the home page, over the background picture.', (redraw) => [
+      pagePicture(t.hero, 'picture', 'background', 'home-background', 'Across the whole screen, so a wide picture (16:9) at least 1920 pixels across. The text sits on the left, so keep what matters on the right.', redraw, false),
+      field('What the background shows', input(t.hero, 'alt', { placeholder: 'For search engines and blind visitors.' })),
+      field('Line over the clan name', input(t.hero, 'eyebrow')),
+      field('Text under the clan name', input(t.hero, 'text', { area: 2 })),
+      h('div', { class: 'field' }, h('span', { class: 'label' }, 'Tags under the buttons'), rows(facts, (_, i) => [factInput(i)], () => '', 'tag', redraw, 'inline'), h('small', {}, 'A number at the start, like 3+ or 500+, is written in bold.')),
+    ]),
+    part('Home page: Who we are', 'The light band under the first screen, with a column for each thing the clan does.', (redraw) => [
+      field('Small line', input(t.about, 'eyebrow')),
+      field('Heading', input(t.about, 'title', { required: true })),
+      field('Text', input(t.about, 'text', { area: 3 })),
+      h('h4', {}, 'Columns'),
+      rows(
+        pillars,
+        (p) => [
+          pagePicture(p, 'image', 'picture', p.name || 'column', 'A YouTube video plays in its place when it has one.', redraw),
+          h(
+            'div',
+            { class: 'fields' },
+            field('Name', input(p, 'name', { required: true })),
+            field('Text', input(p, 'text', { area: 4 })),
+            field('What the picture shows', input(p, 'alt')),
+            field('YouTube video', videoInput(p), 'Optional. Without a picture the video shows its own.'),
+          ),
+        ],
+        () => ({ name: '' }),
+        'column',
+        redraw,
+        'cards',
+      ),
+    ]),
+    part('Home page: the week', 'Where to find us. While the Discord calendar has events planned it shows those; an event there with the same name as one here gets the text from here.', (redraw) => [
+      field('Heading', input(t.week, 'title', { required: true })),
+      field('Text', input(t.week, 'text', { area: 2 }), 'The site adds whether these are the next events on the calendar or the fixed week.'),
+      h('h4', {}, 'The fixed week'),
+      rows(
+        events,
+        (e) => [
+          h('div', { class: 'row' }, field('Day', select(e, 'day', DAYS, 'Mon')), field('Name', input(e, 'name', { required: true })), toggle(e, 'monthly', 'Once a month')),
+          field('Text', input(e, 'text')),
+        ],
+        () => ({ day: 'Mon', name: '' }),
+        'event',
+        redraw,
+      ),
+    ]),
+    part('Home page: Media', 'The photos and videos come from the Photos and Videos tabs; here are the words around them and the other games.', (redraw) => [
+      field('Small line', input(t.media, 'eyebrow')),
+      field('Heading', input(t.media, 'title', { required: true })),
+      field('Text over the other games', input(t.media, 'gamesText')),
+      h('h4', {}, 'Other games'),
+      rows(
+        games,
+        (gm) => [pagePicture(gm, 'image', 'picture', gm.name || 'game', 'Optional. Without one the tile shows the clan serpent.', redraw), h('div', { class: 'fields' }, field('Name', input(gm, 'name', { required: true })))],
+        () => ({ name: '' }),
+        'game',
+        redraw,
+        'cards',
+      ),
+    ]),
+    part('Home page: Questions', 'Questions newcomers ask, each folding open to its answer. Written in the words people search with, they also help Google.', (redraw) => [
+      field('Small line', input(t.faq, 'eyebrow')),
+      field('Heading', input(t.faq, 'title', { required: true })),
+      rows(questions, (q) => [field('Question', input(q, 'q', { required: true })), field('Answer', input(q, 'a', { required: true, area: 3 }))], () => ({ q: '', a: '' }), 'question', redraw),
+    ]),
+    part('Home page: Join today', 'The last part of the home page, over its own background picture.', (redraw) => [
+      pagePicture(t.join, 'picture', 'background', 'join-background', 'A wide picture; it is shown dark under the text.', redraw, false),
+      field('Small line', input(t.join, 'eyebrow')),
+      field('Heading', input(t.join, 'title', { required: true })),
+      field('Text', input(t.join, 'text', { area: 2 })),
+      h('h4', {}, 'Steps'),
+      rows(steps, (st) => [field('Title', input(st, 'title', { required: true })), field('Text', input(st, 'text'))], () => ({ title: '' }), 'step', redraw),
+    ]),
+    part('Jarldom page', 'The page with the clan banner and every Fylki; the banners are set on the Fylki tab.', () => [field('Text under the heading', input(t.jarldom, 'text', { area: 3 }))]),
+    part('Ranks page', 'The ranks themselves are part of the site; here are the text under the heading and the great hall at the bottom.', (redraw) => [
+      field('Text under the heading', input(t.ranks, 'text', { area: 2 })),
+      h('h4', {}, 'The great hall'),
+      pagePicture(t.ranks.hall, 'picture', 'picture', 'great-hall', 'A click on it opens it full size.', redraw),
+      field('What the picture shows', input(t.ranks.hall, 'alt')),
+      field('Small line', input(t.ranks.hall, 'eyebrow')),
+      field('Heading', input(t.ranks.hall, 'title', { required: true })),
+      field('Text', input(t.ranks.hall, 'text', { area: 3 })),
+    ]),
+  );
+}
+
 // ---------- saving ----------
 
 function pending() {
@@ -1465,7 +1707,8 @@ function missing(): HTMLElement | null {
     units(data).some((u) => !u.name?.trim() || ROLES.some(([r]) => u.ls?.[r]?.some((m) => !m.name?.trim())) || u.gallery?.some((p) => !p.alt?.trim())) ||
     data.pages.news.posts.some((p) => !p.title?.trim()) ||
     (data.pages.map.markers ?? []).some((m) => !m.name?.trim()) ||
-    (data.pages.map.labels ?? []).some((l) => !l.text?.trim());
+    (data.pages.map.labels ?? []).some((l) => !l.text?.trim()) ||
+    textsMissing(data.texts);
   return bad ? document.body : null;
 }
 
@@ -1481,7 +1724,7 @@ async function save() {
   const first = missing();
   if (first) {
     if (first !== document.body) first.focus();
-    return message('Some required fields are empty: every photo needs a description, every video a link, every Fylki, Flokkr, member and banner on the map a name, every post a title, and every name on the map its text. Empty ones are marked red, or on another tab.', 'error');
+    return message('Some required fields are empty: every photo needs a description, every video a link, every Fylki, Flokkr, member and banner on the map a name, every post a title, every name on the map its text, and every heading, name and question on the Texts tab its words. Empty ones are marked red, or on another tab.', 'error');
   }
   const { files, added, removed } = pending();
   busy = true;
@@ -1543,25 +1786,27 @@ function setCols(n: string) {
 function render() {
   remember(TAB_KEY, tab, 'session');
   document.querySelectorAll<HTMLButtonElement>('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-  const views: Record<Tab, () => HTMLElement> = { photos: photosView, videos: videosView, fylki: fylkiView, news: newsView, map: mapView };
+  const views: Record<Tab, () => HTMLElement> = { photos: photosView, videos: videosView, fylki: fylkiView, news: newsView, map: mapView, texts: textsView };
   showPoles();
   $('content').replaceChildren(views[tab]());
 }
 
 async function load() {
   base = await gh.head();
-  const [photos, videos, fylki, pages, site, galleryFiles, fylkiFiles] = await Promise.all([
+  const [photos, videos, fylki, pages, site, texts, galleryFiles, fylkiFiles, siteFiles] = await Promise.all([
     gh.text(FILES.photos, base),
     gh.text(FILES.videos, base),
     gh.text(FILES.fylki, base),
     gh.text(FILES.pages, base),
     gh.text(FILES.site, base),
+    gh.text(FILES.texts, base),
     gh.list(GALLERY.slice(1, -1), base),
     gh.list(`public${FYLKI_IMG.slice(0, -1)}`, base),
+    gh.list(`public${SITE_IMG.slice(0, -1)}`, base),
   ]);
-  data = { photos: JSON.parse(photos), videos: JSON.parse(videos), fylki: JSON.parse(fylki), pages: JSON.parse(pages), site: JSON.parse(site) };
+  data = { photos: JSON.parse(photos), videos: JSON.parse(videos), fylki: JSON.parse(fylki), pages: JSON.parse(pages), site: JSON.parse(site), texts: JSON.parse(texts) };
   for (const k of KEYS) saved[k] = serialize(data[k]);
-  repoFiles = new Set([...galleryFiles, ...fylkiFiles]);
+  repoFiles = new Set([...galleryFiles, ...fylkiFiles, ...siteFiles]);
   try {
     const res = await fetch('/admin/thumbs.json', { cache: 'no-store' });
     if (res.ok) thumbs = await res.json();

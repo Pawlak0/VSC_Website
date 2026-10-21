@@ -17,7 +17,7 @@ const picture = await mapPicture();
 const srcset = picture?.copies.length ? [...picture.copies.map((c) => `${c.src} ${c.width}w`), `${jarldomMap.picture} ${picture.width}w`].join(', ') : undefined;
 
 const pins: Pin[] = [
-  ...(jarldomMap.clanAt ? [{ name: 'The Völsung Clan', main: true, banner: bannerLook.clan.banner, shape: bannerLook.clan.shape, href: '/#jarldom', size: 'big' as const, at: jarldomMap.clanAt, nameAbove: jarldomMap.clanNameAbove }] : []),
+  ...(jarldomMap.clanAt ? [{ name: 'The Völsung Clan', main: true, banner: bannerLook.clan.banner, shape: bannerLook.clan.shape, href: '/jarldom/', size: 'big' as const, at: jarldomMap.clanAt, nameAbove: jarldomMap.clanNameAbove }] : []),
   ...fylki.flatMap((f) => [
     ...(f.mapAt ? [{ name: f.name, banner: f.banner, shape: f.shape, href: `/fylki/${f.slug}/`, size: 'normal' as const, at: f.mapAt, nameAbove: f.mapNameAbove }] : []),
     // A Flokkr without a page of its own leads to its Fylki.
@@ -32,7 +32,7 @@ const pins: Pin[] = [
 <Base title="Map of the Jarldom" description="The lands of The Völsung Clan in Mount & Blade II: Bannerlord, with the banner of each Fylki on its land.">
   <section>
     <div class="wrap">
-      <BackLink href="/#jarldom" label="Back to the Jarldom" />
+      <BackLink href="/jarldom/" label="Back to the Jarldom" />
       <div class="head" data-stagger>
         <p class="eyebrow">The Jarldom</p>
         <h1>Map of the Jarldom</h1>
@@ -40,7 +40,7 @@ const pins: Pin[] = [
       </div>
       {
         jarldomMap.picture ? (
-          <div class:list={['jarldom', { nameless: !jarldomMap.names }]} data-reveal>
+          <div class:list={['jarldom', { nameless: !jarldomMap.names }]} style={picture && `--ratio: ${picture.width / picture.height}`} data-reveal>
             <img
               src={jarldomMap.picture}
               srcset={srcset}
@@ -96,13 +96,56 @@ const pins: Pin[] = [
         )
       }
       <div class="links" data-reveal>
-        <a class="textlink" href="/#jarldom">Back to the Jarldom</a>
-        {jarldomMap.picture && <a class="textlink" href={jarldomMap.picture} target="_blank" rel="noopener">Open the full map</a>}
+        <a class="textlink" href="/jarldom/">Back to the Jarldom</a>
+        {
+          jarldomMap.picture && (
+            <a class="textlink" id="open-full-map" href={jarldomMap.picture} target="_blank" rel="noopener">
+              Open the full map
+            </a>
+          )
+        }
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
       </div>
     </div>
   </section>
+  {
+    // The full map: the same map with its banners and names, as big as the screen allows. On a phone held upright it is
+    // taller than the screen is wide, and is moved sideways with a finger. Without scripts the link opens the bare picture.
+    jarldomMap.picture && (
+      <dialog id="full-map" aria-label="Map of the Jarldom">
+        <div class="stage" />
+        <form method="dialog">
+          <button>Close</button>
+        </form>
+      </dialog>
+    )
+  }
 </Base>
+
+<script>
+  const open = document.getElementById('open-full-map');
+  const dlg = document.getElementById('full-map') as HTMLDialogElement | null;
+  const stage = dlg?.querySelector('.stage');
+  open?.addEventListener('click', (e) => {
+    const map = document.querySelector('.jarldom');
+    if (!dlg || !stage || !map || typeof dlg.showModal !== 'function') return;
+    e.preventDefault();
+    if (!stage.firstChild) {
+      const copy = map.cloneNode(true) as HTMLElement;
+      copy.removeAttribute('data-reveal');
+      // The browser picks the picture for the map's size on the page; the full map asks again for its own size.
+      copy.querySelector('img')?.setAttribute('sizes', '100vw');
+      stage.append(copy);
+    }
+    dlg.showModal();
+    // A map wider than the screen opens on its middle.
+    dlg.scrollLeft = (dlg.scrollWidth - dlg.clientWidth) / 2;
+  });
+  // A click beside the map closes it, like a click on the close button.
+  stage?.addEventListener('click', (e) => {
+    if (e.target === stage) dlg?.close();
+  });
+</script>
 
 <style>
   h1 { font-size: clamp(36px, 7vw, 84px); font-weight: 900; letter-spacing: 0.05em; }
@@ -114,4 +157,28 @@ const pins: Pin[] = [
   .legend a:hover { color: var(--gold); }
   .legend .banner, .legend .banner.main { width: 22px; flex: none; }
   .links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; margin-top: 40px; }
+
+  #full-map { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: auto; background: var(--pitch); color: var(--ink); }
+  #full-map::backdrop { background: rgb(0 0 0 / 0.85); }
+  :global(html:has(#full-map[open])) { overflow: hidden; }
+  #full-map .stage { display: flex; min-width: 100%; min-height: 100%; width: max-content; padding: 16px; box-sizing: border-box; }
+  /* Fits the screen; a screen held upright still gets a map of at least 1000px, so the names stay on it. */
+  #full-map .stage > :global(.jarldom) {
+    --fit-h: calc((100dvh - 32px) * var(--ratio));
+    margin: auto;
+    width: max(min(100vw - 32px, var(--fit-h)), min(var(--fit-h), 1000px));
+  }
+  #full-map form { position: fixed; top: 12px; right: 12px; margin: 0; }
+  #full-map form button {
+    font-family: var(--f-display);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 12px;
+    background: color-mix(in srgb, var(--pitch) 80%, transparent);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  #full-map form button:hover { border-color: var(--gold); color: var(--gold); }
 </style>

@@ -5,14 +5,14 @@ import { glowOf, type BannerColors } from '../data/clan';
 interface Props {
   /** A Fylki, or a Flokkr with a slug that is unique across the site. */
   fylki: { slug: string; name: string; banner?: string; subtitle?: string; shape?: string; colors?: BannerColors };
-  /** Makes the whole banner a link, for the home page. */
+  /** Makes the whole banner a link, for the Jarldom page. */
   href?: string;
   /** For a banner further down the page, so it does not hold up the pictures at the top. */
   lazy?: boolean;
 }
 
 const { fylki, href, lazy } = Astro.props;
-// Same name on the home page and the Fylki page, so the banner morphs between them.
+// Same name on the Jarldom page and the Fylki page, so the banner morphs between them.
 const morph = `view-transition-name: banner-${fylki.slug}`;
 const Frame = href ? 'a' : 'div';
 ---

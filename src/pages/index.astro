@@ -1,14 +1,9 @@
 ---
 import Base from '../layouts/Base.astro';
-import FylkiBanner from '../components/FylkiBanner.astro';
-import FlokkrList from '../components/FlokkrList.astro';
-import Banner from '../components/Banner.astro';
-import Rank from '../components/Rank.astro';
 import Gallery from '../components/Gallery.astro';
 import Lightbox from '../components/Lightbox.astro';
 import VideoGrid from '../components/VideoGrid.astro';
-import NewsCards from '../components/NewsCards.astro';
-import { DISCORD_URL, bannerLook, pillars, events, CLAN_TIME_ZONE, fylki, jarldomMap, news, tiers, shieldwall, folk, leaders, gallery, videos, creators, otherGames, faq } from '../data/clan';
+import { DISCORD_URL, pillars, events, CLAN_TIME_ZONE, news, gallery, videos, creators, otherGames, faq, texts } from '../data/clan';
 import { fetchCounts, inviteCode } from '../lib/discord';
 import { upcomingEvents } from '../lib/sesh';
 import { videoCards } from '../lib/videos';
@@ -30,6 +25,10 @@ const upcoming = calendar?.length
 
 const homeVideos = (await videoCards(videos)).filter((v) => v.home);
 
+const { hero, about, week, media, join } = texts;
+// A number at the start of a fact, like the 3+ of "3+ weekly events", is written in bold.
+const fact = (f: string) => f.match(/^(\d[\d.,]*\+?)\s+(.*)$/)?.slice(1) ?? [null, f];
+
 const platforms: [string, string][] = [['youtube.com', 'YouTube'], ['youtu.be', 'YouTube'], ['twitch.tv', 'Twitch'], ['tiktok.com', 'TikTok'], ['kick.com', 'Kick']];
 const platform = (url: string) => {
   const host = new URL(url).hostname.replace(/^www\./, '');
@@ -38,19 +37,30 @@ const platform = (url: string) => {
 ---
 
 <Base>
+  <script is:inline define:vars={{ moved: { '#jarldom': '/jarldom/', '#ranks': '/ranks/', '#news': news.on ? '/news/' : '/' } }}>
+    // Old links to the sections that have pages of their own now, e.g. volsungclan.com/#ranks, open those pages.
+    if (moved[location.hash]) location.replace(moved[location.hash]);
+  </script>
   <header class="hero" id="top">
-    <img class="bg" src="/img/hero-snow-shieldwall.webp" fetchpriority="high" alt="Painting of a Völsung shieldwall under the serpent banner in a snowy forest" />
+    {hero.picture && <img class="bg" src={hero.picture} fetchpriority="high" alt={hero.alt ?? ''} />}
     <div class="wrap" data-stagger>
-      <p class="eyebrow">Mount &amp; Blade II: Bannerlord · EU</p>
+      {hero.eyebrow && <p class="eyebrow">{hero.eyebrow}</p>}
       <h1><small>The</small>Völsung Clan</h1>
-      <p class="lede">A community of Mount &amp; Blade veterans who fight in Bannerlord's biggest events and open world mods.</p>
+      {hero.text && <p class="lede">{hero.text}</p>}
       <div class="ctas">
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
         <a class="btn btn-ghost" href="#events">{upcoming ? 'Upcoming events' : 'See the week'}</a>
       </div>
-      <div class="facts">
-        <span>English speaking</span><span><b>3+</b> weekly events</span><span><b>500+</b> players on BRE Sunday</span><span>Newcomer friendly</span>
-      </div>
+      {
+        hero.facts.length > 0 && (
+          <div class="facts">
+            {hero.facts.map((f) => {
+              const [number, rest] = fact(f);
+              return <span>{number && <><b>{number}</b> </>}{rest}</span>;
+            })}
+          </div>
+        )
+      }
       <a class="live" href={DISCORD_URL} target="_blank" rel="noopener" data-invite={invite} hidden={!counts}>
         <span class="dot" aria-hidden="true"></span>
         <span><b data-count="online">{fmt(counts?.online)}</b> online now</span>
@@ -62,9 +72,9 @@ const platform = (url: string) => {
   <section class="sand" id="about">
     <div class="wrap">
       <div class="head" data-stagger>
-        <p class="eyebrow">Who we are</p>
-        <h2>Shieldwall, bowmen and riders</h2>
-        <p>We are EU-based and newcomer friendly, offering training, guides and support in a welcoming atmosphere, backed by a strong and dedicated leadership team.</p>
+        {about.eyebrow && <p class="eyebrow">{about.eyebrow}</p>}
+        <h2>{about.title}</h2>
+        {about.text && <p>{about.text}</p>}
       </div>
       <div class="pillars" data-stagger>
         {
@@ -74,10 +84,10 @@ const platform = (url: string) => {
               <p>{p.text}</p>
               {p.video ? (
                 <a class="media video" href={`https://www.youtube.com/watch?v=${p.video}`} target="_blank" rel="noopener" data-video={p.video} aria-label={`Play video: ${p.name}`}>
-                  <img src={p.image} alt={p.alt} loading="lazy" />
+                  <img src={p.image || `https://i.ytimg.com/vi/${p.video}/hqdefault.jpg`} alt={p.alt ?? ''} loading="lazy" />
                 </a>
               ) : (
-                <img class="media" src={p.image} alt={p.alt} loading="lazy" />
+                p.image && <img class="media" src={p.image} alt={p.alt ?? ''} loading="lazy" />
               )}
             </div>
           ))
@@ -86,27 +96,12 @@ const platform = (url: string) => {
     </div>
   </section>
 
-  {
-    news.on && news.posts.length > 0 && (
-      <section id="news" class="band">
-        <div class="wrap newsrow">
-          <div class="head" data-stagger>
-            <p class="eyebrow">News</p>
-            <h2>From the hall</h2>
-          </div>
-          <NewsCards posts={news.posts.slice(0, 3)} />
-          <a class="textlink" href="/news/">All news</a>
-        </div>
-      </section>
-    )
-  }
-
   <section id="events">
     <div class="wrap">
       <div class="head" data-stagger>
         <p class="eyebrow">{upcoming ? 'Upcoming events' : 'The Völsung week'}</p>
-        <h2>Where to find us</h2>
-        <p>{upcoming ? 'Persistent Bannerlord runs every day. These are the next events on our Discord calendar.' : 'Persistent Bannerlord runs every day. These are the fixed points.'}</p>
+        <h2>{week.title}</h2>
+        <p>{[week.text, upcoming ? 'These are the next events on our Discord calendar.' : 'These are the fixed points.'].filter(Boolean).join(' ')}</p>
       </div>
       <div class="findus" data-reveal>
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Find us on Discord</a>
@@ -160,117 +155,11 @@ const platform = (url: string) => {
     <span class="runes">{[...'ᚠᚦᚨᚱᚲ'].map((r, i) => <span style={`--i: ${i}`}>{r}</span>)}</span>
   </div>
 
-  <section>
-    <div class="wrap feature">
-      <figure data-reveal>
-        <button type="button" class="zoom" data-src="/img/great-hall.webp"><img src="/img/great-hall.webp" alt="Clansmen gathered in the Völsung great hall before the Jarl and his housecarls" width="1400" height="636" loading="lazy" /></button>
-      </figure>
-      <div class="txt" data-stagger>
-        <p class="eyebrow">Promotion Ceremony</p>
-        <h2>The great hall</h2>
-        <p>On the last Sunday of every month we gather in our great hall to celebrate the achievements of our clansmen and hear updates and announcements from our leadership.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="jarldom" class="band">
-    <div class="wrap jarldom">
-      <div class="head" data-stagger>
-        <p class="eyebrow">The Jarldom</p>
-        <h2>Fylki and Flokkr</h2>
-        <p>The clan marches under one banner and is divided into Fylki, each with its own banner and Merkismaðr. Every Fylki holds smaller Flokkr and has its own page.</p>
-      </div>
-      <div class="crown">
-        <div class="bannerframe">
-          <Banner main src={bannerLook.clan.banner} alt="Banner of the Völsung Clan" shape={bannerLook.clan.shape} lazy />
-          <b>The Völsung Clan</b>
-          <small>Main banner of the clan</small>
-        </div>
-      </div>
-      <div class="fylki">
-        {
-          fylki.map((f) => (
-            <div>
-              <FylkiBanner fylki={f} href={`/fylki/${f.slug}/`} lazy />
-              <FlokkrList fylki={f} />
-            </div>
-          ))
-        }
-      </div>
-      {jarldomMap.on && <a class="textlink maplink" href="/map/">See their lands on the map</a>}
-    </div>
-  </section>
-
-  <section id="ranks">
-    <div class="wrap">
-      <div class="head" data-stagger>
-        <p class="eyebrow">Ranks</p>
-        <h2>From Thrall to Jarl</h2>
-        <p>Every rank is earned in battle, in the civilian branch or by leading others.</p>
-      </div>
-      <div class="leaders" data-stagger>
-        {
-          leaders.map((l) => (
-            <div class="leader">
-              <span class="rune" aria-hidden="true">{l.rune}</span>
-              <b>{l.name}</b>
-              <span>{l.role}</span>
-            </div>
-          ))
-        }
-      </div>
-      <div class="tiers" data-reveal>
-        {
-          tiers.map((t) => (
-            <div class="tier">
-              <header>
-                <h3>{t.name}</h3>
-                <p>{t.meaning}</p>
-              </header>
-              <div class="ranks">
-                {t.ranks.map((r) => (
-                  <Rank rank={r} />
-                ))}
-              </div>
-            </div>
-          ))
-        }
-        <div class="tier">
-          <header><h3>Skjaldborg</h3><p>The Shieldwall</p></header>
-          <div>
-            <div class="ladder">
-              <div class="lh">Infantry</div><div class="lh">Archers</div><div class="lh">Civilians</div>
-              {
-                shieldwall.map((row) =>
-                  [row.infantry, row.archers, row.civilians].map((r) => (
-                    <div>
-                      <Rank rank={r} placeholder />
-                    </div>
-                  )),
-                )
-              }
-            </div>
-            <div class="shared">
-              <div class="lh">Every branch</div>
-              {
-                folk.map((r) => (
-                  <div>
-                    <Rank rank={r} />
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <section id="media" class="band">
     <div class="wrap">
       <div class="head" data-stagger>
-        <p class="eyebrow">Media</p>
-        <h2>A picture speaks a thousand words</h2>
+        {media.eyebrow && <p class="eyebrow">{media.eyebrow}</p>}
+        <h2>{media.title}</h2>
       </div>
       {homeVideos.length > 0 && <div class="home-videos"><VideoGrid items={homeVideos} /></div>}
       <Gallery items={gallery.filter((g) => g.home)} />
@@ -298,7 +187,7 @@ const platform = (url: string) => {
       }
       <div class="head sub-head" data-stagger>
         <p class="eyebrow">Other games</p>
-        <p>Community-led sessions you can jump into whenever you like.</p>
+        {media.gamesText && <p>{media.gamesText}</p>}
       </div>
       <div class="games" data-stagger>
         {
@@ -319,8 +208,8 @@ const platform = (url: string) => {
   <section id="faq">
     <div class="wrap">
       <div class="head" data-stagger>
-        <p class="eyebrow">Questions</p>
-        <h2>Before you join</h2>
+        {texts.faq.eyebrow && <p class="eyebrow">{texts.faq.eyebrow}</p>}
+        <h2>{texts.faq.title}</h2>
       </div>
       <div class="faq" data-stagger>
         {
@@ -336,18 +225,22 @@ const platform = (url: string) => {
   </section>
 
   <section class="join" id="join">
-    <img class="bg" src="/img/castle-muster.webp" alt="" aria-hidden="true" loading="lazy" decoding="async" />
+    {join.picture && <img class="bg" src={join.picture} alt="" aria-hidden="true" loading="lazy" decoding="async" />}
     <div class="wrap">
       <div class="head" data-stagger>
-        <p class="eyebrow">Join today</p>
-        <h2>Think we might be right for you?</h2>
-        <p class="ink">Don't worry if you're new to multiplayer or to Bannerlord. Trainings, guides and experienced players will help you build your skills.</p>
+        {join.eyebrow && <p class="eyebrow">{join.eyebrow}</p>}
+        <h2>{join.title}</h2>
+        {join.text && <p class="ink">{join.text}</p>}
       </div>
-      <div class="steps" data-stagger>
-        <div class="step"><span class="n">Step 1</span><h3>Join the Discord</h3><p>Open the invite and say hello.</p></div>
-        <div class="step"><span class="n">Step 2</span><h3>Apply</h3><p>Post a short application in #applications using the template.</p></div>
-        <div class="step"><span class="n">Step 3</span><h3>Onboarding</h3><p>Questions go to #ask-for-help or to any member of leadership.</p></div>
-      </div>
+      {
+        join.steps.length > 0 && (
+          <div class="steps" data-stagger>
+            {join.steps.map((s, i) => (
+              <div class="step"><span class="n">Step {i + 1}</span><h3>{s.title}</h3>{s.text && <p>{s.text}</p>}</div>
+            ))}
+          </div>
+        )
+      }
       <div class="invite" data-reveal>
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
         <code>discord.gg/volsung-clan</code>
@@ -610,61 +503,8 @@ const platform = (url: string) => {
     .ev { flex: 1; }
   }
 
-  .feature { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); align-items: center; }
-  .feature figure { margin: 0; border: 1px solid var(--line); padding: 8px; background: var(--field); }
-  .feature img { display: block; width: 100%; height: auto; }
-  .feature .zoom { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; overflow: hidden; }
-  .feature .zoom img { transition: transform 0.5s; }
-  .feature .zoom:hover img { transform: scale(1.03); }
-  .feature .txt { display: grid; gap: 16px; }
-  @media (max-width: 820px) { .feature { grid-template-columns: 1fr; } }
-  /* The great hall unrolls from the top, like a banner being lowered. */
-  :global(.motion) .feature figure[data-reveal] { opacity: 1; transform: none; clip-path: inset(0 0 100% 0); transition: clip-path 1.2s cubic-bezier(0.7, 0, 0.2, 1); }
-  :global(.motion) .feature figure[data-reveal].is-in { clip-path: inset(0); }
 
-  .jarldom { display: grid; gap: 36px; }
-  .crown { display: flex; justify-content: center; }
-  .fylki { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding-top: 28px; border-top: 1px solid var(--line); }
-  /* Each card spans two shared rows (banner, Flokkr), so the rows line up even when only some Fylki have a subtitle. */
-  .fylki > div { display: grid; grid-row: span 2; grid-template-rows: subgrid; align-content: start; gap: 18px; justify-items: center; }
-  @media (max-width: 700px) { .fylki { grid-template-columns: 1fr; } }
-  .maplink { justify-self: center; }
-  .newsrow { display: grid; gap: 28px; justify-items: start; }
-  .newsrow .head { margin-bottom: 0; }
-  .newsrow :global(.news-cards) { width: 100%; }
 
-  .tiers { display: grid; gap: 2px; background: var(--line); border: 1px solid var(--line); }
-  .tier { background: var(--pitch); display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; padding: 22px; }
-  .tier header { display: grid; gap: 4px; align-content: start; }
-  .tier header h3 { font-size: 19px; }
-  .tier header p { color: var(--muted); font-size: 16px; }
-  .ranks { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 18px; }
-  .ladder { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); }
-  .ladder > div { padding: 12px 14px; border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
-  .ladder > div:nth-child(3n + 1) { border-left: 0; }
-  .lh { font-family: var(--f-display); font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
-  .ladder > .lh { border-top: 0; }
-  /* Folk and Thrall come before the branches split, so they run across all three columns. */
-  .shared { border: 1px solid var(--line); border-top: 0; }
-  .shared > div { padding: 12px 14px; border-top: 1px solid var(--line); }
-  .shared > .lh { border-top: 0; }
-  @media (max-width: 820px) { .tier { grid-template-columns: 1fr; gap: 14px; } }
-  /* Three branch columns are too narrow on a phone: list Warriors, then Archers, then Civilians. */
-  @media (max-width: 560px) {
-    .ladder { grid-template-columns: minmax(0, 1fr); }
-    .ladder > div { border-left: 0; }
-    .ladder > :nth-child(3n + 1) { order: 1; }
-    .ladder > :nth-child(3n + 2) { order: 2; }
-    .ladder > :nth-child(3n + 3) { order: 3; }
-    .ladder > .lh:not(:first-child) { border-top: 1px solid var(--line); }
-  }
-
-  .leaders { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 28px; }
-  .leader { border: 1px solid var(--line); padding: 16px; display: grid; gap: 6px; background: var(--field); }
-  .leader .rune { font-size: 22px; }
-  .leader b { font-family: var(--f-display); letter-spacing: 0.06em; }
-  .leader span { color: var(--muted); font-size: 15px; }
-  @media (max-width: 820px) { .leaders { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
   .gallery-more { margin-top: 20px; display: flex; justify-content: center; }
   .home-videos { margin-bottom: 28px; }
@@ -733,11 +573,11 @@ const platform = (url: string) => {
   .join img.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
   .join::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, var(--shade), color-mix(in srgb, var(--shade) 75%, transparent)); }
   .join .head p.ink { color: var(--ink); }
-  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 32px 0; }
+  .steps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 16px; margin: 32px 0; }
   .step { border-top: 2px solid var(--gold); padding-top: 14px; display: grid; gap: 8px; }
   .step .n { font-family: var(--f-display); font-size: 13px; letter-spacing: 0.2em; color: var(--gold); }
   .step p { font-size: 17px; }
-  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) { .steps { grid-auto-flow: row; } }
   .invite { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
   .invite code { font-family: var(--f-body); font-size: 18px; padding: 12px 14px; border: 1px solid var(--line); background: var(--field); user-select: all; }
 </style>

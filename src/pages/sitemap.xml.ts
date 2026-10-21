@@ -5,6 +5,8 @@ import { fylki, hasPage, jarldomMap, news } from '../data/clan';
 export const GET: APIRoute = ({ site }) => {
   const pages = [
     '/',
+    '/jarldom/',
+    '/ranks/',
     '/media/',
     ...(news.on ? ['/news/', ...news.posts.map((p) => `/news/${p.id}/`)] : []),
     ...(jarldomMap.on ? ['/map/'] : []),

@@ -20,7 +20,7 @@ const others = fylki.filter((o) => o.slug !== f.slug);
 <Base title={f.name} description={`${f.name}, a Fylki of The Völsung Clan in Mount & Blade II: Bannerlord.`} colors={f.colors}>
   <section class="fylki-hero">
     <div class="wrap">
-      <BackLink href="/#jarldom" label="Back to the Jarldom" />
+      <BackLink href="/jarldom/" label="Back to the Jarldom" />
     </div>
     <div class="wrap intro">
       <FylkiBanner fylki={f} />
@@ -75,7 +75,7 @@ const others = fylki.filter((o) => o.slug !== f.slug);
       <p class="eyebrow">Other Fylki</p>
       <div class="links">
         {others.map((o) => <a class="textlink" href={`/fylki/${o.slug}/`}>{o.name}</a>)}
-        <a class="textlink" href="/#jarldom">The whole Jarldom</a>
+        <a class="textlink" href="/jarldom/">The whole Jarldom</a>
       </div>
       <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
     </div>

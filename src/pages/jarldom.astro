@@ -1,0 +1,55 @@
+---
+import Base from '../layouts/Base.astro';
+import BackLink from '../components/BackLink.astro';
+import Banner from '../components/Banner.astro';
+import FylkiBanner from '../components/FylkiBanner.astro';
+import FlokkrList from '../components/FlokkrList.astro';
+import { DISCORD_URL, bannerLook, fylki, jarldomMap, texts } from '../data/clan';
+---
+
+<Base title="The Jarldom" description="The Fylki and Flokkr of The Völsung Clan in Mount & Blade II: Bannerlord, each under its own banner.">
+  <section>
+    <div class="wrap realm">
+      <BackLink href="/" label="Back to the home page" />
+      <div class="head" data-stagger>
+        <p class="eyebrow">Fylki and Flokkr</p>
+        <h1>The Jarldom</h1>
+        {texts.jarldom.text && <p>{texts.jarldom.text}</p>}
+      </div>
+      <div class="crown">
+        <div class="bannerframe">
+          <Banner main src={bannerLook.clan.banner} alt="Banner of the Völsung Clan" shape={bannerLook.clan.shape} />
+          <b>The Völsung Clan</b>
+          <small>Main banner of the clan</small>
+        </div>
+      </div>
+      <div class="fylki">
+        {
+          fylki.map((f) => (
+            <div>
+              <FylkiBanner fylki={f} href={`/fylki/${f.slug}/`} />
+              <FlokkrList fylki={f} />
+            </div>
+          ))
+        }
+      </div>
+      <div class="links" data-reveal>
+        {jarldomMap.on ? <a class="textlink" href="/map/">See their lands on the map</a> : <a class="textlink" href="/">Back to the home page</a>}
+        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  h1 { font-size: clamp(36px, 7vw, 84px); font-weight: 900; letter-spacing: 0.05em; }
+  .realm .head { margin-bottom: 0; }
+  .realm { display: grid; gap: 36px; }
+  .realm > :global(.back) { margin-bottom: -16px; justify-self: start; }
+  .crown { display: flex; justify-content: center; }
+  .fylki { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding-top: 28px; border-top: 1px solid var(--line); }
+  /* Each card spans two shared rows (banner, Flokkr), so the rows line up even when only some Fylki have a subtitle. */
+  .fylki > div { display: grid; grid-row: span 2; grid-template-rows: subgrid; align-content: start; gap: 18px; justify-items: center; }
+  @media (max-width: 700px) { .fylki { grid-template-columns: 1fr; } }
+  .links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; margin-top: 4px; }
+</style>

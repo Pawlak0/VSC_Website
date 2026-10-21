@@ -1,9 +1,11 @@
-// Clan content in one place. Edit text here; pages read from it.
+// Clan content in one place; pages read from it. The texts and pictures of the pages are in texts.json, edited in the
+// site panel's Texts tab.
 import photos from './photos.json';
 import videoList from './videos.json';
 import fylkiList from './fylki.json';
 import extraPages from './pages.json';
 import siteSettings from './site.json';
+import siteTexts from './texts.json';
 import { pageSlug } from '../lib/slug';
 import { SHAPES } from '../lib/banner-shapes';
 
@@ -20,32 +22,16 @@ export type Pillar = {
   video?: string;
 };
 
-export const pillars: Pillar[] = [
-  {
-    name: 'Persistent Bannerlord',
-    text: "One of the server's major factions. Daily player-led combat against other clans for resources, land and glory, fuelled by one of the strongest civilian divisions in the mod.",
-    image: '/img/desert-march.webp',
-    alt: 'The clan on the march across the desert',
-  },
-  {
-    name: 'Weekly Events',
-    text: 'Three main events every week with hundreds of other players. All optional, so you play on your own schedule.',
-    image: '/img/bre-event.webp',
-    alt: 'The Völsung shieldwall clashing with another faction on a forest hill',
-  },
-  {
-    name: 'Training',
-    text: 'Several sessions a month on settings, combat mechanics and groupfighting, plus dedicated sessions for archers and cavalry.',
-    image: '/img/shields-close.webp',
-    alt: 'Völsung shields locked together',
-  },
-  {
-    name: 'Fieldbattles',
-    text: 'Native fieldbattles against other clans, 20v20 and 25v25, and internal skirmish nights with mixed teams in competitive style.',
-    image: '/img/meadow-wall.webp',
-    alt: 'A long Völsung shieldwall facing the enemy across a meadow',
-  },
-];
+// The words and pictures of the pages, from the site panel (texts.json). A row left without its name is skipped.
+type Texts = typeof siteTexts;
+const full = <T>(rows: T[] | undefined, key: keyof T) => (rows ?? []).filter((r) => String(r[key] ?? '').trim());
+export const texts = {
+  ...siteTexts,
+  hero: { ...siteTexts.hero, facts: (siteTexts.hero.facts ?? []).filter((f) => f.trim()) },
+  join: { ...siteTexts.join, steps: full(siteTexts.join.steps, 'title') },
+} as Texts;
+
+export const pillars: Pillar[] = full(siteTexts.about.pillars as Pillar[], 'name');
 
 export type Event = {
   day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
@@ -55,12 +41,7 @@ export type Event = {
 };
 
 /** The fixed week, shown until the Discord calendar (Sesh) is connected and when it has nothing planned. */
-export const events: Event[] = [
-  { day: 'Tue', name: 'Middle-Earth', text: 'Lord of the Rings field battle with unique skins, weapons and maps.' },
-  { day: 'Sat', name: 'Chronicles Drengr', text: '10th–11th century Europe with realistic damage, speed and armour.' },
-  { day: 'Sun', name: 'BRE Sunday', text: 'Modded field battle, 500+ players, custom Völsung classes.' },
-  { day: 'Sun', name: 'Promotion Ceremony', text: 'Last Sunday of the month, in our great hall.', monthly: true },
-];
+export const events: Event[] = full(siteTexts.week.events as Event[], 'name');
 
 /** Time zone of calendar dates and times when the visitor's browser cannot convert them to their own. */
 export const CLAN_TIME_ZONE = 'Europe/Berlin';
@@ -416,37 +397,10 @@ export type Game = {
   image?: string;
 };
 
-export const otherGames: Game[] = [
-  { name: 'Crusader Kings' },
-  { name: 'Counter-Strike' },
-  { name: 'Total War' },
-  { name: 'Wardogs' },
-  { name: 'Valheim' },
-];
+export const otherGames: Game[] = full(siteTexts.media.games as Game[], 'name');
 
 /** Questions newcomers ask, shown above "Join today" and written in the words people search with. */
-export const faq: { q: string; a: string }[] = [
-  {
-    q: 'How do I join The Völsung Clan?',
-    a: 'Join our Discord, post a short application in #applications using the template, and leadership will help you through onboarding.',
-  },
-  {
-    q: 'Do I need Bannerlord multiplayer experience?',
-    a: 'No. We are a newcomer-friendly clan: trainings, guides and experienced players help you learn the shieldwall, the bow or a civilian role. Cavalry is the exception: a place among our riders is earned and reserved for the best.',
-  },
-  {
-    q: 'Where is the clan based and when do you play?',
-    a: 'We are an EU clan. Our weekly events run in the evening, Central European Time: Middle-Earth on Tuesday, Chronicles on Saturday and BRE on Sunday. Persistent Bannerlord runs every day.',
-  },
-  {
-    q: 'What do you play besides the events?',
-    a: `Persistent Bannerlord, the open-world mod where we are one of the major factions, and community sessions of ${otherGames.map((g) => g.name).join(', ')} and more.`,
-  },
-  {
-    q: 'How do ranks and promotions work?',
-    a: 'The first ranks are Thrall and Folk. After that you climb the Infantry, Archer or Civilian ladder of the Skjaldborg. Promotions are earned through both your skill and your activity in the clan. They are announced at the Promotion Ceremony on the last Sunday of every month, and it is fine if you cannot make it to the ceremony.',
-  },
-];
+export const faq: { q: string; a: string }[] = full(siteTexts.faq.questions, 'q');
 
 // Settings for the whole site from the site panel (site.json): the clan's own banner (its picture, drawn in its colours
 // without one, and its shape) and whether every banner hangs from a pole.
