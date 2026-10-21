@@ -59,11 +59,11 @@ Every push to `main` builds the site and deploys it to GitHub Pages (`.github/wo
 
 One-time setup in the repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 
-### Domain (OVHcloud)
+### Domain
 
-The site is served at `volsungclan.com`. The first domain, `volsung-clan.tech`, sends visitors there with an OVHcloud redirection (that works for http:// links only). Because it is published by GitHub Actions, GitHub ignores the `public/CNAME` file, so the domain is set in **Settings → Pages → Custom domain**.
+The site is served at `volsungclan.com`. The domain is registered at OVHcloud, but its DNS has been run by Cloudflare since 21 October 2026 (the members' API below needs it). The first domain, `volsung-clan.tech`, sends visitors there with an OVHcloud redirection (that works for http:// links only). Because it is published by GitHub Actions, GitHub ignores the `public/CNAME` file, so the domain is set in **Settings → Pages → Custom domain**.
 
-In the OVHcloud DNS zone for the domain (the bare domain is written `@` there), set:
+In the Cloudflare DNS records for the domain (the bare domain is written `@`), set these, each as **DNS only** (grey cloud), or GitHub cannot renew the site's HTTPS certificate:
 
 | Type | Subdomain | Target |
 | --- | --- | --- |
@@ -77,10 +77,18 @@ In the OVHcloud DNS zone for the domain (the bare domain is written `@` there), 
 | AAAA | @ | 2606:50c0:8003::153 |
 | CNAME | www | pawlak0.github.io. |
 
-Remove the A and AAAA records OVHcloud adds for its own hosting on `@`, and remove other records on `www` (a CNAME cannot sit next to them). Leave NS, MX, SPF and TXT records alone. Once GitHub has issued the certificate, tick **Enforce HTTPS** in Settings → Pages.
+Other records on `@` and `www` must go (a CNAME cannot sit next to them); leave MX, SPF and TXT records alone. `api` is added by Cloudflare itself for the members' API. Once GitHub has issued the certificate, tick **Enforce HTTPS** in Settings → Pages.
 
 ### Search engines
 
 The domain also lives in `astro.config.mjs` (`site`). Every page gets its canonical address, the sitemap (`/sitemap.xml`) and `robots.txt` from it, so a new domain means changing `site`, `public/CNAME` and the custom domain in Settings → Pages. The home page also describes the clan to search engines (name, Discord link) in a `ld+json` block in `src/layouts/Base.astro`.
 
-To get the site into Google, add the domain in [Google Search Console](https://search.google.com/search-console) as a Domain property, verify it with the TXT record it gives (in the OVHcloud DNS zone), then submit `https://<domain>/sitemap.xml` under Sitemaps.
+To get the site into Google, add the domain in [Google Search Console](https://search.google.com/search-console) as a Domain property, verify it with the TXT record it gives (in the Cloudflare DNS records), then submit `https://<domain>/sitemap.xml` under Sitemaps.
+
+## Members' sign-in (`api/`)
+
+Members log in with Discord on `/account/`. The site stays static; the sign-in runs on a small Cloudflare Worker at `api.volsungclan.com` with a D1 database in the EU (`api/`). Only people on the clan's Discord server with the Völsung Clansman role get in (`MEMBER_ROLE_ID` in `api/wrangler.jsonc`). The Worker checks the role at sign-in and again at most an hour later. Every hour it also asks the clan's bot about members not checked for a day, signs out anyone who lost the role, and deletes their account 4 months later. What is kept, and for how long, is on `/privacy/`; keep that page in step with the Worker.
+
+`.github/workflows/api.yml` checks the Worker on pull requests and deploys it from `main` (or a manual run). The deploy creates the database the first time and applies `api/migrations/`. It needs these Actions secrets: `CLOUDFLARE_API_TOKEN` (template *Edit Cloudflare Workers* plus *Account → D1 → Edit*, zone `volsungclan.com`), `CLOUDFLARE_ACCOUNT_ID`, `DISCORD_CLIENT_SECRET` (the bot's Discord application, which also needs the redirect `https://api.volsungclan.com/auth/callback`) and `DISCORD_BOT_TOKEN`.
+
+To try it locally, put `DISCORD_CLIENT_SECRET` and `DISCORD_BOT_TOKEN` in `api/.dev.vars`, then run `npx wrangler d1 migrations apply vsc-members --local` and `npx wrangler dev` in `api/`. Build the site with `PUBLIC_API_URL=http://localhost:8787`, and give the Worker `SITE`, `API` and an empty `COOKIE_DOMAIN` to match (`--var`).

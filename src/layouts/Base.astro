@@ -110,6 +110,7 @@ const clanData = {
               </li>
             ))
           }
+          <li><a id="nav-account" href="/account/" aria-current={current('/account/')}>Log in</a></li>
         </ul>
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join us</a>
         <button class="menu" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
@@ -127,6 +128,7 @@ const clanData = {
         <span><span class="rune">ᚠ</span> The Völsung Clan (VSC) · Mount &amp; Blade II: Bannerlord</span>
         <span class="links">
           <a href={DISCORD_URL} target="_blank" rel="noopener">discord.gg/volsung-clan</a>
+          <a href="/privacy/">Privacy</a>
           <a href="/admin/" rel="nofollow">Admin panel</a>
         </span>
       </div>
@@ -136,7 +138,24 @@ const clanData = {
     </button>
 
     <script>
+      import { maybeSignedIn, whoAmI } from '../lib/members';
+
       const root = document.documentElement;
+
+      // A member who is signed in sees their Discord picture and name in the nav instead of "Log in".
+      const account = document.querySelector<HTMLAnchorElement>('#nav-account');
+      if (account && maybeSignedIn()) {
+        whoAmI().then(
+          (me) => {
+            if (!me) return;
+            const picture = Object.assign(document.createElement('img'), { src: me.avatar, alt: '', width: 22, height: 22 });
+            account.replaceChildren(picture, Object.assign(document.createElement('span'), { textContent: me.name }));
+            account.classList.add('in');
+            account.title = 'Your account';
+          },
+          () => {},
+        );
+      }
 
       // Reveal sections as they scroll into view (styles in global.css).
       if (root.classList.contains('motion')) {
@@ -327,6 +346,9 @@ const clanData = {
     from { transform: scaleX(0); }
     to { transform: scaleX(1); }
   }
+  #nav-account.in { display: inline-flex; align-items: center; gap: 8px; }
+  #nav-account img { width: 22px; height: 22px; border-radius: 50%; margin-block: -4px; }
+  #nav-account span { max-width: 10em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nav .btn { padding: 10px 16px; font-size: 12px; }
   @media (max-width: 860px) {
     .nav .wrap { gap: 12px; }

@@ -1,0 +1,62 @@
+---
+import Base from '../layouts/Base.astro';
+import BackLink from '../components/BackLink.astro';
+import { DISCORD_URL } from '../data/clan';
+// What the site and the members' sign-in keep about people. Keep it in step with the API in api/ when that changes.
+---
+
+<Base title="Privacy" description="What the website of The Völsung Clan keeps about visitors and members, and for how long.">
+  <section>
+    <div class="wrap">
+      <BackLink href="/" label="Back to the home page" />
+      <div class="head">
+        <p class="eyebrow">Last updated 21 October 2026</p>
+        <h1>Privacy</h1>
+        <p>This site belongs to The Völsung Clan, a Mount &amp; Blade II: Bannerlord community. Questions about your data go to an officer on <a class="inline" href={DISCORD_URL} target="_blank" rel="noopener">our Discord</a>.</p>
+      </div>
+
+      <div class="policy">
+        <h2>Visiting the site</h2>
+        <p>Reading the site needs no account. There are no ads, no analytics and no tracking cookies. The pages are hosted on GitHub Pages, the fonts come from Google Fonts, and a YouTube video loads from YouTube's privacy-enhanced player only when you press play. Those services see your network address when your browser fetches from them, as any website does.</p>
+
+        <h2>Signing in as a member</h2>
+        <p>Members can sign in with Discord. Discord then tells the clan's sign-in service your Discord user ID, your name and picture, and the roles you have on the Völsung Discord server. Only people with the Völsung Clansman role get in. For them we keep:</p>
+        <ul>
+          <li>your Discord user ID, the name you go by on our server and a link to your picture,</li>
+          <li>when you first and last signed in, and when your role was last confirmed,</li>
+          <li>for each browser you are signed in on, a record of the session: a one-way hash of its cookie and when it ends.</li>
+        </ul>
+        <p>We never see your password or email address. We do not keep your list of roles or the access token Discord gives us; the token is cancelled as soon as your role is checked. People without the role are turned away and nothing about them is kept.</p>
+
+        <h2>Cookies</h2>
+        <ul>
+          <li><b>__Host-vsc_session</b> keeps you signed in for 30 days. Only the sign-in service can read it; scripts on the pages cannot.</li>
+          <li><b>vsc_signed_in</b> only tells the pages that someone is signed in, so they can show your name. It holds no personal data.</li>
+          <li><b>__Host-vsc_login</b> lasts ten minutes during a sign-in and makes sure the answer from Discord belongs to your visit.</li>
+        </ul>
+        <p>These are needed for signing in to work, so the site does not ask for consent to them.</p>
+
+        <h2>Where and how long</h2>
+        <p>The sign-in service runs on Cloudflare, and its database is held in the European Union. To stop abuse it counts sign-in attempts per network address, stored only as a hash and deleted within the hour.</p>
+        <ul>
+          <li>A session ends when you log out, or after 30 days.</li>
+          <li>If you leave the clan or lose the Völsung Clansman role, you lose access within the hour and your account is deleted 4 months later.</li>
+          <li>You can delete your data yourself at any time on <a class="inline" href="/account/">your account page</a>.</li>
+          <li>Deleted data can stay in the database's automatic recovery history for up to 30 days before it is gone for good.</li>
+        </ul>
+
+        <h2>Why, and your rights</h2>
+        <p>We keep this data to let members of the clan sign in, which is the clan's legitimate interest in running its community (GDPR Article 6(1)(f)). You can ask an officer what we hold about you, have it corrected (change your name on Discord and sign in again) or deleted, and object to its use. You can also complain to your national data protection authority.</p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .policy { display: grid; gap: 18px; max-width: 68ch; }
+  .policy h2 { font-size: clamp(22px, 2.6vw, 28px); margin-top: 22px; }
+  .policy ul { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; }
+  .policy b { font-weight: 500; color: var(--ink); }
+  .head .inline, .policy .inline { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+  .policy .inline:hover, .head .inline:hover { color: var(--ink); }
+</style>

@@ -1,0 +1,126 @@
+---
+import Base from '../layouts/Base.astro';
+import BackLink from '../components/BackLink.astro';
+import { DISCORD_URL } from '../data/clan';
+import { loginUrl } from '../lib/members';
+---
+
+<Base title="Your account" description="Members of The Völsung Clan sign in here with Discord." noindex>
+  <section>
+    <div class="wrap">
+      <BackLink href="/" label="Back to the home page" />
+      <div class="head">
+        <p class="eyebrow">For members of the clan</p>
+        <h1>Your account</h1>
+      </div>
+
+      <div class="account" aria-live="polite">
+        <p data-state="checking">Checking whether you are signed in…</p>
+
+        <div data-state="out" hidden>
+          <p class="problem" hidden><span></span> <a class="inline" href={DISCORD_URL} target="_blank" rel="noopener" hidden>Join the Discord</a></p>
+          <p>Members of the clan sign in with their Discord account. Only those on the Völsung Discord with the <b>Völsung Clansman</b> role get in.</p>
+          <a class="btn btn-gold" href={loginUrl()}>Log in with Discord</a>
+          <p class="small">
+            We never see your password or email. Discord tells us only your ID, your name and picture, and whether you have the role.{' '}
+            <a class="inline" href="/privacy/">How we keep your data</a>
+          </p>
+        </div>
+
+        <div data-state="in" hidden>
+          <div class="who">
+            <img alt="" width="72" height="72" />
+            <div>
+              <h2 class="name"></h2>
+              <p class="since"></p>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-ghost" type="button" data-act="logout">Log out</button>
+            <button class="btn btn-ghost" type="button" data-act="logout-all">Log out everywhere</button>
+          </div>
+          <p class="small">
+            Logging out everywhere also signs you out on your other devices. You can also
+            <button class="inline" type="button" data-act="delete">delete your data</button>; signing in again later
+            starts a new account.
+          </p>
+        </div>
+
+        <p data-state="down" hidden>Signing in is not available right now. Please try again a little later.</p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { act, whoAmI } from '../lib/members';
+
+  // What went wrong, when Discord sends someone back without signing them in.
+  const problems: Record<string, string> = {
+    'not-in-clan': 'This Discord account is not on the Völsung Discord server. Join us there first, then log in again.',
+    'no-role': 'You are on our Discord, but without the Völsung Clansman role yet. Once an officer gives it to you, log in again.',
+    cancelled: 'The sign-in was cancelled on Discord.',
+    expired: 'The sign-in took too long or was started in another tab. Please try again.',
+    busy: 'Too many sign-in attempts. Please wait a minute and try again.',
+    failed: 'Discord could not confirm the sign-in. Please try again.',
+  };
+
+  const box = document.querySelector<HTMLElement>('.account')!;
+  const show = (state: string) => box.querySelectorAll<HTMLElement>('[data-state]').forEach((el) => (el.hidden = el.dataset.state !== state));
+
+  const error = new URLSearchParams(location.search).get('error');
+  if (error) {
+    history.replaceState(null, '', location.pathname);
+    const problem = box.querySelector<HTMLElement>('.problem')!;
+    problem.querySelector('span')!.textContent = problems[error] ?? problems.failed;
+    problem.querySelector('a')!.hidden = error !== 'not-in-clan';
+    problem.hidden = false;
+  }
+
+  async function load() {
+    try {
+      const me = await whoAmI();
+      if (!me) return show('out');
+      box.querySelector<HTMLImageElement>('.who img')!.src = me.avatar;
+      box.querySelector('.name')!.textContent = me.name;
+      const since = new Date(me.memberSince).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+      box.querySelector('.since')!.textContent = `Völsung Clansman · signed in here since ${since}`;
+      show('in');
+    } catch {
+      show('down');
+    }
+  }
+
+  box.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const what = b.dataset.act as 'logout' | 'logout-all' | 'delete';
+      if (what === 'delete' && !confirm('Delete everything the site keeps about you? You will be logged out on every device.')) return;
+      b.disabled = true;
+      try {
+        await act(what);
+        location.reload();
+      } catch {
+        b.disabled = false;
+        show('down');
+      }
+    }),
+  );
+
+  load();
+</script>
+
+<style>
+  .account { display: grid; gap: 20px; max-width: 60ch; }
+  .account [data-state] { display: grid; gap: 20px; justify-items: start; }
+  .account [hidden] { display: none; }
+  .problem { border-left: 2px solid var(--gold); padding: 4px 0 4px 14px; color: var(--ink); }
+  .small { color: var(--muted); font-size: 16px; }
+  .who { display: flex; align-items: center; gap: 20px; }
+  .who img { width: 72px; height: 72px; border-radius: 50%; border: 1px solid var(--line); background: var(--field); }
+  .who h2 { font-size: clamp(24px, 3vw, 32px); overflow-wrap: anywhere; }
+  .since { color: var(--muted); }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .actions .btn { cursor: pointer; background: none; }
+  .inline { font: inherit; color: var(--gold); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .inline:hover { color: var(--ink); }
+</style>

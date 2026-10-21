@@ -10,6 +10,7 @@ export const GET: APIRoute = ({ site }) => {
     '/media/',
     ...(news.on ? ['/news/', ...news.posts.map((p) => `/news/${p.id}/`)] : []),
     ...(jarldomMap.on ? ['/map/'] : []),
+    '/privacy/',
     ...fylki.flatMap((f) => [`/fylki/${f.slug}/`, ...f.flokkr.filter(hasPage).map((k) => `/fylki/${f.slug}/${k.slug}/`)]),
   ];
   const urls = pages.map((p) => `  <url><loc>${new URL(p, site)}</loc></url>`).join('\n');
