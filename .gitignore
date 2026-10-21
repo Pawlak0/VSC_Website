@@ -3,3 +3,7 @@ dist/
 .astro/
 .DS_Store
 .env
+
+# Local state of the API (wrangler dev)
+.wrangler/
+.dev.vars
