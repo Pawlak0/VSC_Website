@@ -48,7 +48,7 @@ const platform = (url: string) => {
       <h1><small>The</small>Völsung Clan</h1>
       {hero.text && <p class="lede">{hero.text}</p>}
       <div class="ctas">
-        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener" data-join>Join on Discord</a>
         <a class="btn btn-ghost" href="#events">{upcoming ? 'Upcoming events' : 'See the week'}</a>
       </div>
       {
@@ -224,7 +224,7 @@ const platform = (url: string) => {
     </div>
   </section>
 
-  <section class="join" id="join">
+  <section class="join" id="join" data-join>
     {join.picture && <img class="bg" src={join.picture} alt="" aria-hidden="true" loading="lazy" decoding="async" />}
     <div class="wrap">
       <div class="head" data-stagger>
@@ -242,7 +242,7 @@ const platform = (url: string) => {
         )
       }
       <div class="invite" data-reveal>
-        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener" data-join>Join on Discord</a>
         <code>discord.gg/volsung-clan</code>
       </div>
     </div>

@@ -71,7 +71,7 @@ const { ls } = await withDiscord(k.name, k.ls, (await clansmenWith(f.discordRole
         {others.map((o) => <a class="textlink" href={`/fylki/${f.slug}/${o.slug}/`}>{o.name}</a>)}
         <a class="textlink" href="/jarldom/">The whole Jarldom</a>
       </div>
-      <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+      <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener" data-join>Join on Discord</a>
     </div>
   </section>
   {k.gallery.length > 0 && <Lightbox />}
