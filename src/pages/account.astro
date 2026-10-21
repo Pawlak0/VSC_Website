@@ -41,10 +41,23 @@ import { loginUrl } from '../lib/members';
             <button class="btn btn-ghost" type="button" data-act="logout-all">Log out everywhere</button>
           </div>
           <p class="small">
-            Logging out everywhere also signs you out on your other devices. You can also
+            Logging out everywhere also signs you out on your other devices. You can also{' '}
             <button class="inline" type="button" data-act="delete">delete your data</button>; signing in again later
             starts a new account.
           </p>
+          <form class="reach" novalidate>
+            <h3>Links on your profile</h3>
+            <p class="small">Let visitors of your profile reach you. Both stay off until you add them here, and show on your profile from the next hourly update.</p>
+            <label class="check"><input type="checkbox" name="discord" /> <span>A button to message me on Discord</span></label>
+            <label class="field">
+              <span>Steam profile</span>
+              <input name="steam" type="text" inputmode="url" autocomplete="off" spellcheck="false" maxlength="200" placeholder="https://steamcommunity.com/id/yourname" />
+            </label>
+            <div class="save">
+              <button class="btn btn-gold" type="submit">Save</button>
+              <span class="note" role="status"></span>
+            </div>
+          </form>
         </div>
 
         <p data-state="down" hidden>Signing in is not available right now. Please try again a little later.</p>
@@ -54,7 +67,7 @@ import { loginUrl } from '../lib/members';
 </Base>
 
 <script>
-  import { act, whoAmI } from '../lib/members';
+  import { act, saveLinks, whoAmI } from '../lib/members';
 
   // What went wrong, when Discord sends someone back without signing them in.
   const problems: Record<string, string> = {
@@ -78,6 +91,28 @@ import { loginUrl } from '../lib/members';
     problem.hidden = false;
   }
 
+  const form = box.querySelector<HTMLFormElement & { discord: HTMLInputElement; steam: HTMLInputElement }>('form.reach')!;
+  const note = form.querySelector<HTMLElement>('.note')!;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const button = form.querySelector('button')!;
+    button.disabled = true;
+    note.textContent = 'Saving…';
+    try {
+      const saved = await saveLinks({ discord: form.discord.checked, steam: form.steam.value.trim() || null });
+      form.steam.value = saved.steam ?? '';
+      note.textContent = 'Saved. Your profile shows it from the next hourly update.';
+    } catch (err) {
+      note.textContent =
+        err instanceof Error && err.message === 'steam'
+          ? 'That is not a Steam profile link. Copy it from your profile on Steam; it looks like https://steamcommunity.com/id/yourname.'
+          : 'Could not save right now. Please try again a little later.';
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   async function load() {
     try {
       const me = await whoAmI();
@@ -86,6 +121,8 @@ import { loginUrl } from '../lib/members';
       box.querySelector('.name')!.textContent = me.name;
       const since = new Date(me.memberSince).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
       box.querySelector('.since')!.textContent = `Völsung Clansman · signed in here since ${since}`;
+      form.discord.checked = me.links?.discord ?? false;
+      form.steam.value = me.links?.steam ?? '';
       show('in');
       // Profiles are made when the site is rebuilt, so a brand new member may not have one for up to an hour.
       const profile = `/members/${me.id}/`;
@@ -133,6 +170,17 @@ import { loginUrl } from '../lib/members';
   .actions { display: flex; flex-wrap: wrap; gap: 12px; }
   .actions .btn { cursor: pointer; }
   .actions .btn-ghost { background: none; }
+  .reach { display: grid; gap: 16px; width: 100%; padding-top: 28px; border-top: 1px solid var(--line); }
+  .reach h3 { font-size: clamp(20px, 2.4vw, 24px); }
+  .check { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .check input { width: 20px; height: 20px; flex: none; accent-color: var(--gold); cursor: pointer; }
+  .field { display: grid; gap: 8px; }
+  .field span { font-family: var(--f-display); font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .field input { width: 100%; font: inherit; font-size: 17px; color: var(--ink); background: var(--field); border: 1px solid var(--line); padding: 12px 14px; }
+  .field input:focus { outline: none; border-color: var(--gold); }
+  .save { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+  .save .btn { cursor: pointer; }
+  .note { color: var(--muted); font-size: 16px; }
   .inline { font: inherit; color: var(--gold); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
   .inline:hover { color: var(--ink); }
 </style>

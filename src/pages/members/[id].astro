@@ -5,12 +5,14 @@ import BackLink from '../../components/BackLink.astro';
 import FylkiBanner from '../../components/FylkiBanner.astro';
 import { fylki } from '../../data/clan';
 import { profiles, type Profile } from '../../lib/clansmen';
+import { profileLinks, type ProfileLinks } from '../../lib/profile-links';
 
 export async function getStaticPaths() {
-  return (await profiles()).map((p) => ({ params: { id: p.id }, props: { person: p } }));
+  const links = await profileLinks();
+  return (await profiles()).map((p) => ({ params: { id: p.id }, props: { person: p, links: links[p.id] ?? {} } }));
 }
 
-const { person: p } = Astro.props as { person: Profile };
+const { person: p, links } = Astro.props as { person: Profile; links: ProfileLinks };
 const f = fylki.find((x) => x.slug === p.fylki);
 const since = p.joined && new Date(p.joined).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 const top = p.ranks[0];
@@ -36,6 +38,22 @@ const top = p.ranks[0];
             )
           }
           {since && <p class="since">On the clan's Discord since {since}</p>}
+          {
+            (links.discord || links.steam) && (
+              <p class="reach">
+                {links.discord && (
+                  <a class="btn btn-gold" href={`https://discord.com/users/${p.id}`} target="_blank" rel="noopener">
+                    Message on Discord ↗
+                  </a>
+                )}
+                {links.steam && (
+                  <a class="btn btn-ghost" href={links.steam} target="_blank" rel="noopener">
+                    Steam profile ↗
+                  </a>
+                )}
+              </p>
+            )
+          }
         </div>
       </div>
       {f && <FylkiBanner fylki={f} href={`/fylki/${f.slug}/`} />}
@@ -91,6 +109,7 @@ const top = p.ranks[0];
   .rank { display: flex; align-items: center; gap: 10px; font-family: var(--f-display); font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
   .rank img { width: 28px; height: 28px; object-fit: contain; }
   .since { color: var(--muted); }
+  .reach { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
 
   .medals { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
   .medals li { --medal: var(--gold); display: grid; justify-items: center; gap: 12px; padding: 22px 12px 18px; text-align: center; border: 1px solid var(--line); border-top: 2px solid var(--medal); background: var(--pitch); }
