@@ -10,6 +10,10 @@ import { pageSlug } from '../lib/slug';
 import { SHAPES } from '../lib/banner-shapes';
 
 export const DISCORD_URL = 'https://discord.gg/volsung-clan';
+/** The clan's Discord server, where each Fylki's members are read from by its role. */
+export const DISCORD_GUILD_ID = '1309581602619129948';
+/** Discord user IDs of members who asked not to be listed on the Fylki pages. */
+export const UNLISTED: string[] = [];
 
 /** The pillars under "Who we are". A YouTube video replaces the picture when `video` is set. */
 export type Pillar = {
@@ -105,6 +109,8 @@ export type Spot = { x: number; y: number };
 export type Fylki = {
   slug: string;
   name: string;
+  /** Its role on the clan's Discord server. Everyone with it is listed on the Fylki's page, refreshed every hour. Optional. */
+  discordRole?: string;
   /** Short line under the banner, e.g. "Fylki of the Jarl". Optional. */
   subtitle?: string;
   /** Path under /public, e.g. /img/fylki/nordmorr.webp. Leave empty until the banner is ready. */
@@ -158,6 +164,7 @@ export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
   .map((f) => ({
     slug: pageSlug(f.slug || f.name!),
     name: f.name!,
+    discordRole: /^\d{17,20}$/.test(f.discordRole?.trim() ?? '') ? f.discordRole!.trim() : undefined,
     subtitle: f.subtitle || undefined,
     banner: f.banner || undefined,
     description: f.description || 'Description to come.',

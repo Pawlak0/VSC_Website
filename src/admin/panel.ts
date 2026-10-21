@@ -35,6 +35,8 @@ type Flokkr = {
   shape?: string;
 };
 type Fylki = Flokkr & {
+  /** Its role on the clan's Discord server; everyone with it is listed on the Fylki's page. */
+  discordRole?: string;
   flokkr?: Flokkr[];
   /** For a Fylki that was a Flokkr: its old page, which the site forwards here. */
   movedFrom?: string;
@@ -826,6 +828,13 @@ function unitForm(u: Fylki, parent?: Fylki) {
               `The part after /fylki/${parent ? `${slugOf(parent)}/` : ''} in the link. Changing it breaks links people already shared.`,
             ),
             field('Line under the banner', input(u, 'subtitle', { placeholder: parent ? 'Optional' : 'e.g. Fylki of the Jarl' })),
+            parent
+              ? null
+              : field(
+                  'Discord role ID',
+                  input(u, 'discordRole', { placeholder: 'e.g. 1553798318537179198' }),
+                  'Everyone with this role on the clan’s Discord is listed on the page, refreshed every hour. In Discord: Server Settings → Roles, right-click the role → Copy Role ID. Empty hides the list.',
+                ),
             field(
               'Description',
               input(u, 'description', { area: 3 }),

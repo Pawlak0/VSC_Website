@@ -39,6 +39,10 @@ The members and online counts under the hero come from the public Discord invite
 
 "Where to find us" lists the next events (up to six, within 30 days) from the clan's Sesh calendar. The feed address from Sesh's `/link` command is stored as the repository secret `SESH_ICS_URL` (Settings → Secrets and variables → Actions) and never in the code, since anyone with it can read the calendar. Without JavaScript dates and times are shown in `CLAN_TIME_ZONE` (`src/data/clan.ts`); otherwise visitors see them in their own time zone. When an event's name matches one in `events`, the site uses that description, and a monthly one gets a dotted line. Without the secret, or when the calendar is empty, the fixed `events` week is shown.
 
+### Fylki members (Discord roles)
+
+Each Fylki page lists everyone who has that Fylki's role on the clan's Discord server, under the LS. The role ID is the Fylki's **Discord role ID** in the panel (`discordRole` in `fylki.json`). The clan's bot reads the server while the site builds, with the repository secret `DISCORD_BOT_TOKEN` (the bot needs the Server Members Intent), and the hourly rebuild keeps the lists current. Names are the members' nicknames on the server; their pictures are copied into the site at `/img/members/`. Bots are skipped, and anyone who asks not to be listed goes in `UNLISTED` (`src/data/clan.ts`) by Discord user ID. Without the secret, or when Discord does not answer, the lists are left out. `src/lib/clansmen.ts` does the reading.
+
 ### Scroll effects
 
 Blocks fade up as they scroll into view. Add `data-reveal` to an element to bring it in as one piece, or `data-stagger` to bring its children in one after another. The styles are at the end of `src/styles/global.css`; visitors who ask their system for reduced motion get the page without effects.
