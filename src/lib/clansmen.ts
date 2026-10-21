@@ -192,10 +192,10 @@ const rankNamed = (name: string) => RANKS.find((r) => fold(r.name) === fold(name
 
 const nameOf = (m: GuildMember) => m.nick || m.user.global_name || m.user.username;
 
-/** The name past leading marks and tags such as "‹ [Lǫgmaðr] ". */
-const plain = (name: string) => name.replace(/^(?:[^\p{L}\p{N}\[]|\[[^\]]*\])*/u, '').trim() || name;
-/** Sorts by the name itself. */
-const sortKey = (name: string) => plain(name).toLocaleLowerCase('en');
+/** The name past the runes, marks and tags in front of it, such as "ᚲ [Lǫgmaðr] ". */
+const plain = (name: string) => name.replace(/^(?:[^\p{L}\p{N}\[]|\p{Script=Runic}|\[[^\]]*\])*/u, '').trim() || name;
+/** Sorts past the marks and tags but by the rune in front, which the clan uses to put the ranks in order. */
+const sortKey = (name: string) => (name.replace(/^(?:[^\p{L}\p{N}\[]|\[[^\]]*\])*/u, '').trim() || name).toLocaleLowerCase('en');
 
 /** Their picture on the clan's server, else on Discord, else one of Discord's default ones. */
 function avatarUrl(m: GuildMember): string {
