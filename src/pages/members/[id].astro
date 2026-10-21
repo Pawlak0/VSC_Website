@@ -3,7 +3,6 @@
 import Base from '../../layouts/Base.astro';
 import BackLink from '../../components/BackLink.astro';
 import FylkiBanner from '../../components/FylkiBanner.astro';
-import RankRow from '../../components/Rank.astro';
 import { fylki } from '../../data/clan';
 import { profiles, type Profile } from '../../lib/clansmen';
 
@@ -66,25 +65,8 @@ const top = p.ranks[0];
   </section>
 
   {
-    p.ranks.length > 0 && (
-      <section>
-        <div class="wrap">
-          <div class="head" data-stagger>
-            <p class="eyebrow">Ranks</p>
-            <h2>Standing in the clan</h2>
-            <p>What each rank means is on the <a class="textlink" href="/ranks/">Ranks page</a>.</p>
-          </div>
-          <div class="ranks" data-stagger>
-            {p.ranks.map((r) => <RankRow rank={r} placeholder />)}
-          </div>
-        </div>
-      </section>
-    )
-  }
-
-  {
     p.games.length > 0 && (
-      <section class:list={[{ band: p.ranks.length > 0 }]}>
+      <section>
         <div class="wrap">
           <div class="head" data-stagger>
             <p class="eyebrow">Other games</p>
@@ -117,8 +99,6 @@ const top = p.ranks[0];
   .seal .emoji { font-size: 34px; line-height: 1; }
   .seal .emblem { width: 18px; opacity: 0.6; }
   .medals b { font-family: var(--f-display); font-size: 15px; letter-spacing: 0.06em; overflow-wrap: anywhere; }
-
-  .ranks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px 40px; }
 
   .games { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
   .games li { padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; font-size: 16px; }
