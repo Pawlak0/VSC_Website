@@ -4,7 +4,7 @@ name: API
 # run) deploys it, with the secrets from this repository's Actions secrets.
 on:
   push:
-    branches: [main]
+    branches: [main, member-login]
     paths: ['api/**', '.github/workflows/api.yml']
   pull_request:
     paths: ['api/**', '.github/workflows/api.yml']
