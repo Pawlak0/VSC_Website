@@ -1,5 +1,5 @@
 // The clan's API on Cloudflare Workers, at api.volsungclan.com. GitHub Actions deploys it (.github/workflows/api.yml)
-// and passes in the two secrets, DISCORD_CLIENT_SECRET and DISCORD_BOT_TOKEN; they are never written here.
+// and passes in the secrets, DISCORD_CLIENT_SECRET, DISCORD_BOT_TOKEN and SITE_REBUILD_TOKEN; they are never written here.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vsc-api",
@@ -10,7 +10,8 @@
   "workers_dev": false,
   "preview_urls": false,
   "observability": { "enabled": true },
-  // Every hour: drop old sessions, check that members still have the role, delete accounts of those who left.
+  // Every hour: rebuild the website, drop old sessions, check that members still have the role, delete accounts of
+  // those who left.
   "triggers": { "crons": ["23 * * * *"] },
   "d1_databases": [
     {
@@ -29,6 +30,9 @@
     "DISCORD_GUILD_ID": "1309581602619129948",
     "MEMBER_ROLE_ID": "1309592103646531615",
     "DISCORD_API": "https://discord.com/api/v10",
-    "DISCORD_AUTHORIZE": "https://discord.com/oauth2/authorize"
+    "DISCORD_AUTHORIZE": "https://discord.com/oauth2/authorize",
+    "GITHUB_API": "https://api.github.com",
+    "SITE_REPO": "Pawlak0/VSC_Website",
+    "SITE_WORKFLOW": "deploy.yml"
   }
 }
