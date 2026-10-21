@@ -110,7 +110,14 @@ const clanData = {
               </li>
             ))
           }
-          <li><a id="nav-account" href="/account/" aria-current={current('/account/')}>Log in</a></li>
+          <li class="me">
+            <a id="nav-account" href="/account/" aria-current={current('/account/')}>Log in</a>
+            <ul class="sub" id="nav-me">
+              <li><a data-me="profile" hidden>Your profile</a></li>
+              <li><a href="/account/" aria-current={current('/account/')}>Account</a></li>
+              <li><button type="button" data-me="logout">Log out</button></li>
+            </ul>
+          </li>
         </ul>
         <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join us</a>
         <button class="menu" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
@@ -138,20 +145,65 @@ const clanData = {
     </button>
 
     <script>
-      import { maybeSignedIn, whoAmI } from '../lib/members';
+      import { act, maybeSignedIn, whoAmI } from '../lib/members';
+      import { plainName } from '../lib/names';
 
       const root = document.documentElement;
 
-      // A member who is signed in sees their Discord picture and name in the nav instead of "Log in".
+      // A member who is signed in sees their Discord picture and name in the nav instead of "Log in", which opens a
+      // small menu with their profile, their account and logging out.
       const account = document.querySelector<HTMLAnchorElement>('#nav-account');
-      if (account && maybeSignedIn()) {
+      const mine = account?.closest<HTMLElement>('.me');
+      if (account && mine && maybeSignedIn()) {
         whoAmI().then(
           (me) => {
             if (!me) return;
-            const picture = Object.assign(document.createElement('img'), { src: me.avatar, alt: '', width: 22, height: 22 });
-            account.replaceChildren(picture, Object.assign(document.createElement('span'), { textContent: me.name }));
-            account.classList.add('in');
-            account.title = 'Your account';
+            const toggle = Object.assign(document.createElement('button'), { type: 'button', className: 'me-toggle', title: 'Your account' });
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.setAttribute('aria-controls', 'nav-me');
+            toggle.append(
+              Object.assign(document.createElement('img'), { src: me.avatar, alt: '', width: 22, height: 22 }),
+              Object.assign(document.createElement('span'), { textContent: plainName(me.name) }),
+            );
+            toggle.insertAdjacentHTML('beforeend', '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" /></svg>');
+            const profile = `/members/${me.id}/`;
+            if (location.pathname === '/account/' || location.pathname === profile) toggle.setAttribute('aria-current', 'page');
+            account.replaceWith(toggle);
+            mine.classList.add('in');
+
+            const open = (on: boolean) => {
+              mine.classList.toggle('open', on);
+              toggle.setAttribute('aria-expanded', String(on));
+            };
+            toggle.addEventListener('click', () => open(!mine.classList.contains('open')));
+            document.addEventListener('click', (e) => {
+              if (!mine.contains(e.target as Node)) open(false);
+            });
+            document.addEventListener('keydown', (e) => {
+              if (e.key === 'Escape') open(false);
+            });
+
+            // Profiles are made when the site is rebuilt, so a brand new member may not have one for up to an hour.
+            fetch(profile, { method: 'HEAD' })
+              .then((r) => {
+                if (!r.ok) return;
+                const link = mine.querySelector<HTMLAnchorElement>('[data-me="profile"]')!;
+                link.href = profile;
+                if (location.pathname === profile) link.setAttribute('aria-current', 'page');
+                link.hidden = false;
+              })
+              .catch(() => {});
+
+            const logout = mine.querySelector<HTMLButtonElement>('[data-me="logout"]')!;
+            logout.addEventListener('click', async () => {
+              logout.disabled = true;
+              try {
+                await act('logout');
+                location.reload();
+              } catch {
+                location.href = '/account/';
+              }
+            });
           },
           () => {},
         );
@@ -346,10 +398,30 @@ const clanData = {
     from { transform: scaleX(0); }
     to { transform: scaleX(1); }
   }
-  #nav-account.in { display: inline-flex; align-items: center; gap: 8px; }
-  #nav-account img { width: 22px; height: 22px; border-radius: 50%; margin-block: -4px; }
-  #nav-account span { max-width: 10em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .nav .btn { padding: 10px 16px; font-size: 12px; }
+  /* The signed-in member's menu opens on a click and sits under their name, against the right edge. */
+  .nav .me { position: relative; }
+  .nav .me:not(.in) .sub { display: none; }
+  .nav .me.open .sub { display: grid; }
+  .nav .me .sub { left: auto; right: -17px; min-width: 180px; }
+  .nav .me .sub [hidden] { display: none; }
+  /* The button with the member's name is made by the script, so its rules reach past this file's scoping. */
+  .me :global(.me-toggle), .nav .me .sub button { font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; }
+  .me :global(.me-toggle) { display: inline-flex; align-items: center; gap: 8px; }
+  .me :global(.me-toggle:hover), .me :global(.me-toggle[aria-current]), .me.open :global(.me-toggle), .nav .me .sub button:hover { color: var(--gold); }
+  .me :global(.me-toggle img) { flex: none; width: 22px; height: 22px; border-radius: 50%; margin-block: -4px; }
+  .me :global(.me-toggle span) { max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 1100px) {
+    .nav ul { gap: 16px; }
+    .me :global(.me-toggle span) { max-width: 7em; }
+  }
+  /* Just above the phone menu there is room only for the picture. */
+  @media (max-width: 960px) and (min-width: 861px) {
+    .me :global(.me-toggle span) { display: none; }
+  }
+  .me :global(.me-toggle svg) { flex: none; width: 10px; height: 10px; stroke: currentColor; stroke-width: 1.6; fill: none; transition: transform 0.2s; }
+  .me.open :global(.me-toggle svg) { transform: rotate(180deg); }
+  .nav .me .sub button:disabled { opacity: 0.5; cursor: wait; }
+  .nav .btn { padding: 10px 16px; font-size: 12px; white-space: nowrap; }
   @media (max-width: 860px) {
     .nav .wrap { gap: 12px; }
     .nav ul { display: none; }

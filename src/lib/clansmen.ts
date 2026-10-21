@@ -4,6 +4,7 @@
 // The clan's bot reads the server with the DISCORD_BOT_TOKEN secret in GitHub; without it, or when Discord does not
 // answer, the lists and profiles stay out. Pictures are copied into the site, so visitors' browsers never ask Discord.
 import { createHash } from 'node:crypto';
+import { plainName } from './names';
 import { CLANSMAN_ROLE_ID, DISCORD_GUILD_ID, PROFILE_SECTIONS, UNLISTED, folk, fylki, shieldwall, tiers, type Rank } from '../data/clan';
 
 // Overridable only to try the lists against a pretend Discord.
@@ -126,7 +127,7 @@ async function read(token?: string): Promise<Lists | null> {
         if (!ranks.length && tag && rankNamed(tag)) ranks.push(rankNamed(tag)!);
         return {
           ...clansman(m),
-          plainName: plain(nameOf(m)),
+          plainName: plainName(nameOf(m)),
           fylki: fylki.find((f) => f.discordRole && m.roles.includes(f.discordRole))?.slug,
           ranks: ranks.sort((a, b) => RANKS.indexOf(a) - RANKS.indexOf(b)),
           medals: own
@@ -192,8 +193,6 @@ const rankNamed = (name: string) => RANKS.find((r) => fold(r.name) === fold(name
 
 const nameOf = (m: GuildMember) => m.nick || m.user.global_name || m.user.username;
 
-/** The name past the runes, marks and tags in front of it, such as "ᚲ [Lǫgmaðr] ". */
-const plain = (name: string) => name.replace(/^(?:[^\p{L}\p{N}\[]|\p{Script=Runic}|\[[^\]]*\])*/u, '').trim() || name;
 /** Sorts past the marks and tags but by the rune in front, which the clan uses to put the ranks in order. */
 const sortKey = (name: string) => (name.replace(/^(?:[^\p{L}\p{N}\[]|\[[^\]]*\])*/u, '').trim() || name).toLocaleLowerCase('en');
 
