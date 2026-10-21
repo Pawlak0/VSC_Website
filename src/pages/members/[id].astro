@@ -1,0 +1,125 @@
+---
+// A page for every Clansman, made from their roles on the clan's Discord (src/lib/clansmen.ts) and rebuilt every hour.
+import Base from '../../layouts/Base.astro';
+import BackLink from '../../components/BackLink.astro';
+import FylkiBanner from '../../components/FylkiBanner.astro';
+import RankRow from '../../components/Rank.astro';
+import { fylki } from '../../data/clan';
+import { profiles, type Profile } from '../../lib/clansmen';
+
+export async function getStaticPaths() {
+  return (await profiles()).map((p) => ({ params: { id: p.id }, props: { person: p } }));
+}
+
+const { person: p } = Astro.props as { person: Profile };
+const f = fylki.find((x) => x.slug === p.fylki);
+const since = p.joined && new Date(p.joined).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+const top = p.ranks[0];
+---
+
+<Base title={p.plainName} description={`${p.plainName}, a Clansman of The Völsung Clan${f ? ` in ${f.name}` : ''}.`} image={p.picture} noindex colors={f?.colors}>
+  <section class="profile-hero">
+    <div class="wrap">
+      <BackLink href={f ? `/fylki/${f.slug}/` : '/jarldom/'} label={f ? `Back to ${f.name}` : 'Back to the Jarldom'} />
+    </div>
+    <div class="wrap intro">
+      <div class="who" data-stagger>
+        {p.picture ? <img class="face" src={p.picture} alt="" width="96" height="96" /> : <span class="face" aria-hidden="true"><i class="emblem" /></span>}
+        <div class="txt">
+          <p class="eyebrow">{f ? `${f.name} Fylki` : 'Völsung Clansman'}</p>
+          <h1>{p.plainName}</h1>
+          {
+            top && (
+              <p class="rank">
+                {top.icon && <img src={top.icon} alt="" width="28" height="28" />}
+                {top.name}
+              </p>
+            )
+          }
+          {since && <p class="since">On the clan's Discord since {since}</p>}
+        </div>
+      </div>
+      {f && <FylkiBanner fylki={f} href={`/fylki/${f.slug}/`} />}
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <div class="head" data-stagger>
+        <p class="eyebrow">Honours</p>
+        <h2>Medals</h2>
+        <p>{p.medals.length ? "Awarded on the clan's Discord." : "No medals yet. They are awarded on the clan's Discord."}</p>
+      </div>
+      {
+        p.medals.length > 0 && (
+          <ul class="medals" data-stagger>
+            {p.medals.map((m) => (
+              <li style={m.color ? `--medal: ${m.color}` : undefined}>
+                <span class="seal">{m.icon ? <img src={m.icon} alt="" width="48" height="48" loading="lazy" /> : m.emoji ? <span class="emoji">{m.emoji}</span> : <i class="emblem" aria-hidden="true" />}</span>
+                <b>{m.name}</b>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </div>
+  </section>
+
+  {
+    p.ranks.length > 0 && (
+      <section>
+        <div class="wrap">
+          <div class="head" data-stagger>
+            <p class="eyebrow">Ranks</p>
+            <h2>Standing in the clan</h2>
+            <p>What each rank means is on the <a class="textlink" href="/ranks/">Ranks page</a>.</p>
+          </div>
+          <div class="ranks" data-stagger>
+            {p.ranks.map((r) => <RankRow rank={r} placeholder />)}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  {
+    p.games.length > 0 && (
+      <section class:list={[{ band: p.ranks.length > 0 }]}>
+        <div class="wrap">
+          <div class="head" data-stagger>
+            <p class="eyebrow">Other games</p>
+            <h2>Also plays</h2>
+          </div>
+          <ul class="games" data-stagger>
+            {p.games.map((g) => <li>{g}</li>)}
+          </ul>
+        </div>
+      </section>
+    )
+  }
+</Base>
+
+<style>
+  .intro { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: clamp(32px, 5vw, 64px); }
+  .who { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(20px, 3vw, 36px); flex: 1 1 320px; min-width: 0; }
+  .face { width: clamp(96px, 12vw, 136px); height: clamp(96px, 12vw, 136px); flex: none; border-radius: 50%; border: 2px solid var(--gold); box-shadow: 0 0 0 6px color-mix(in srgb, var(--gold) 14%, transparent); object-fit: cover; background: var(--field); display: grid; place-items: center; }
+  .face .emblem { width: 34%; opacity: 0.5; }
+  .txt { display: grid; gap: 12px; flex: 1 1 240px; min-width: 0; }
+  h1 { font-size: clamp(34px, 6vw, 72px); font-weight: 900; letter-spacing: 0.05em; overflow-wrap: anywhere; }
+  .rank { display: flex; align-items: center; gap: 10px; font-family: var(--f-display); font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
+  .rank img { width: 28px; height: 28px; object-fit: contain; }
+  .since { color: var(--muted); }
+
+  .medals { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
+  .medals li { --medal: var(--gold); display: grid; justify-items: center; gap: 12px; padding: 22px 12px 18px; text-align: center; border: 1px solid var(--line); border-top: 2px solid var(--medal); background: var(--pitch); }
+  .seal { width: 72px; height: 72px; display: grid; place-items: center; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--medal) 70%, transparent); background: radial-gradient(circle, color-mix(in srgb, var(--medal) 22%, transparent), transparent 70%); }
+  .seal img { width: 48px; height: 48px; object-fit: contain; }
+  .seal .emoji { font-size: 34px; line-height: 1; }
+  .seal .emblem { width: 18px; opacity: 0.6; }
+  .medals b { font-family: var(--f-display); font-size: 15px; letter-spacing: 0.06em; overflow-wrap: anywhere; }
+
+  .ranks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px 40px; }
+
+  .games { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+  .games li { padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; font-size: 16px; }
+</style>

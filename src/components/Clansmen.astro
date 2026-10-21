@@ -18,8 +18,10 @@ const { name, members } = Astro.props;
   {
     members.map((m) => (
       <li>
-        {m.picture ? <img src={m.picture} alt="" width="40" height="40" loading="lazy" /> : <span class="emblem" aria-hidden="true" />}
-        <span class="name">{m.name}</span>
+        <a href={`/members/${m.id}/`}>
+          {m.picture ? <img src={m.picture} alt="" width="40" height="40" loading="lazy" /> : <span class="emblem" aria-hidden="true" />}
+          <span class="name">{m.name}</span>
+        </a>
       </li>
     ))
   }
@@ -27,7 +29,10 @@ const { name, members } = Astro.props;
 
 <style>
   .clansmen { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px 24px; }
-  li { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  li { min-width: 0; }
+  a { display: flex; align-items: center; gap: 12px; min-width: 0; color: inherit; text-decoration: none; }
+  a:hover .name, a:focus-visible .name { color: var(--gold); }
+  a:hover img { border-color: var(--gold); }
   img { width: 40px; height: 40px; flex: none; border-radius: 50%; border: 1px solid var(--line); object-fit: cover; }
   .emblem { width: 24px; flex: none; margin: 0 8px; }
   .name { min-width: 0; overflow-wrap: anywhere; font-size: 17px; }
