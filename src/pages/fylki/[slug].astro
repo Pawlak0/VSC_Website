@@ -90,7 +90,7 @@ const groups = byTier((members ?? []).filter((m) => !found.has(m.id)));
         {others.map((o) => <a class="textlink" href={`/fylki/${o.slug}/`}>{o.name}</a>)}
         <a class="textlink" href="/jarldom/">The whole Jarldom</a>
       </div>
-      <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+      <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener" data-join>Join on Discord</a>
     </div>
   </section>
   {f.gallery.length > 0 && <Lightbox />}

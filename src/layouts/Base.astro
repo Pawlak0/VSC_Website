@@ -89,6 +89,9 @@ const clanData = {
       if ('IntersectionObserver' in window && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
         document.documentElement.classList.add('motion');
       }
+      // Signed-in members are already on the Discord, so the "Join" buttons (marked data-join) are hidden for them from
+      // the first paint. The nav script below takes the class off again if the sign-in turns out to have ended.
+      if (/(?:^|;\s*)vsc_signed_in=1(?:;|$)/.test(document.cookie)) document.documentElement.classList.add('member');
     </script>
   </head>
   <body class:list={{ 'banner-poles': bannerLook.poles }}>
@@ -111,7 +114,9 @@ const clanData = {
             ))
           }
           <li class="me">
-            <a id="nav-account" href="/account/" aria-current={current('/account/')}>Log in</a>
+            <a id="nav-account" href="/account/" aria-current={current('/account/')}>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2.5h4.5v11H9M2 8h8M7 5l3 3-3 3" /></svg>Log in
+            </a>
             <ul class="sub" id="nav-me">
               <li><a data-me="profile" hidden>Your profile</a></li>
               <li><a href="/account/" aria-current={current('/account/')}>Account</a></li>
@@ -119,7 +124,7 @@ const clanData = {
             </ul>
           </li>
         </ul>
-        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join us</a>
+        <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener" data-join>Join us</a>
         <button class="menu" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
         </button>
@@ -157,7 +162,7 @@ const clanData = {
       if (account && mine && maybeSignedIn()) {
         whoAmI().then(
           (me) => {
-            if (!me) return;
+            if (!me) return root.classList.remove('member');
             const toggle = Object.assign(document.createElement('button'), { type: 'button', className: 'me-toggle', title: 'Your account' });
             toggle.setAttribute('aria-expanded', 'false');
             toggle.setAttribute('aria-controls', 'nav-me');
@@ -398,6 +403,11 @@ const clanData = {
     from { transform: scaleX(0); }
     to { transform: scaleX(1); }
   }
+  /* "Log in" stands apart from the page links as an outlined button, without growing the bar. */
+  .nav ul #nav-account { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; margin-block: -10px; border: 1px solid var(--line); transition: border-color 0.2s, color 0.2s; }
+  .nav ul #nav-account:hover, .nav ul #nav-account[aria-current] { border-color: var(--gold); }
+  .nav ul #nav-account::after { content: none; }
+  #nav-account svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
   /* The signed-in member's menu opens on a click and sits under their name, against the right edge. */
   .nav .me { position: relative; }
   .nav .me:not(.in) .sub { display: none; }
@@ -427,6 +437,7 @@ const clanData = {
     .nav ul { display: none; }
     .nav .btn { margin-left: auto; }
     .menu { display: grid; }
+    :global(.member) .menu { margin-left: auto; }
     .nav.open #nav-links {
       display: grid;
       gap: 0;
@@ -444,6 +455,7 @@ const clanData = {
     .nav.open #nav-links > li:last-child { border-bottom: 0; }
     .nav.open .sub { display: grid; position: static; margin: 0; padding: 14px 0 2px 18px; gap: 14px; min-width: 0; background: none; border: 0; }
     .nav.open .sub::before { content: none; }
+    .nav.open #nav-account { margin-block: 0; }
   }
   footer { border-top: 1px solid var(--line); padding-block: 28px; color: var(--muted); font-size: 15px; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; }

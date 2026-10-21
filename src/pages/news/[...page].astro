@@ -55,7 +55,7 @@ const older = at >= 0 ? news.posts[at + 1] : undefined;
           )}
           <div class="links" data-reveal>
             <a class="textlink" href="/news/">All news</a>
-            <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+            <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener" data-join>Join on Discord</a>
           </div>
         </article>
       </section>
@@ -73,7 +73,7 @@ const older = at >= 0 ? news.posts[at + 1] : undefined;
           {news.posts.length ? <NewsCards posts={news.posts} /> : <p class="none">No news yet.</p>}
           <div class="links" data-reveal>
             <a class="textlink" href="/">Back to the home page</a>
-            <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener">Join on Discord</a>
+            <a class="btn btn-gold" href={DISCORD_URL} target="_blank" rel="noopener" data-join>Join on Discord</a>
           </div>
         </div>
       </section>

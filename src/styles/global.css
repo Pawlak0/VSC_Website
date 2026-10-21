@@ -22,6 +22,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+/* Signed-in members are on the Discord already (the class comes from Base.astro). */
+.member [data-join] { display: none !important; }
 body {
   margin: 0;
   background: var(--pitch);
