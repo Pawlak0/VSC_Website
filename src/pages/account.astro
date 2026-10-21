@@ -36,6 +36,7 @@ import { loginUrl } from '../lib/members';
             </div>
           </div>
           <div class="actions">
+            <a class="btn btn-gold" data-profile hidden>Your profile</a>
             <button class="btn btn-ghost" type="button" data-act="logout">Log out</button>
             <button class="btn btn-ghost" type="button" data-act="logout-all">Log out everywhere</button>
           </div>
@@ -86,6 +87,16 @@ import { loginUrl } from '../lib/members';
       const since = new Date(me.memberSince).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
       box.querySelector('.since')!.textContent = `Völsung Clansman · signed in here since ${since}`;
       show('in');
+      // Profiles are made when the site is rebuilt, so a brand new member may not have one for up to an hour.
+      const profile = `/members/${me.id}/`;
+      fetch(profile, { method: 'HEAD' })
+        .then((r) => {
+          if (!r.ok) return;
+          const link = box.querySelector<HTMLAnchorElement>('[data-profile]')!;
+          link.href = profile;
+          link.hidden = false;
+        })
+        .catch(() => {});
     } catch {
       show('down');
     }

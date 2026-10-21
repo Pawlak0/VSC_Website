@@ -12,8 +12,16 @@ import { SHAPES } from '../lib/banner-shapes';
 export const DISCORD_URL = 'https://discord.gg/volsung-clan';
 /** The clan's Discord server, where each Fylki's members are read from by its role. */
 export const DISCORD_GUILD_ID = '1309581602619129948';
-/** Discord user IDs of members who asked not to be listed on the Fylki pages. */
+/** The Völsung Clansman role: everyone with it, or with a Fylki's role, has a profile at /members/<Discord ID>/. */
+export const CLANSMAN_ROLE_ID = '1309592103646531615';
+/** Discord user IDs of members who asked not to be listed on the Fylki pages or to have a profile. */
 export const UNLISTED: string[] = [];
+/**
+ * Profile sections read from the server's role list. On Discord a section starts at a divider role, one whose name
+ * begins with a line or a mark rather than a letter, such as "━━ 《✦ Medals ✦》 ━━", and runs down to the next divider.
+ * Each section here is found by a word in its divider's name.
+ */
+export const PROFILE_SECTIONS = { medals: 'medals', games: 'other games' };
 
 /** The pillars under "Who we are". A YouTube video replaces the picture when `video` is set. */
 export type Pillar = {
