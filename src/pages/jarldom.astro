@@ -4,15 +4,17 @@ import BackLink from '../components/BackLink.astro';
 import Banner from '../components/Banner.astro';
 import FylkiBanner from '../components/FylkiBanner.astro';
 import FlokkrList from '../components/FlokkrList.astro';
-import { DISCORD_URL, bannerLook, fylki, jarldomMap, texts } from '../data/clan';
+import { DISCORD_URL, bannerLook, flokkrShown, fylki, jarldomMap, texts } from '../data/clan';
+
+const units = flokkrShown ? 'Fylki and Flokkr' : 'Fylki';
 ---
 
-<Base title="The Jarldom" description="The Fylki and Flokkr of The Völsung Clan in Mount & Blade II: Bannerlord, each under its own banner.">
+<Base title="The Jarldom" description={`The ${units} of The Völsung Clan in Mount & Blade II: Bannerlord, each under its own banner.`}>
   <section>
     <div class="wrap realm">
       <BackLink href="/" label="Back to the home page" />
       <div class="head" data-stagger>
-        <p class="eyebrow">Fylki and Flokkr</p>
+        <p class="eyebrow">{units}</p>
         <h1>The Jarldom</h1>
         {texts.jarldom.text && <p>{texts.jarldom.text}</p>}
       </div>
@@ -28,7 +30,7 @@ import { DISCORD_URL, bannerLook, fylki, jarldomMap, texts } from '../data/clan'
           fylki.map((f) => (
             <div>
               <FylkiBanner fylki={f} href={`/fylki/${f.slug}/`} />
-              <FlokkrList fylki={f} />
+              {flokkrShown && <FlokkrList fylki={f} />}
             </div>
           ))
         }

@@ -63,8 +63,8 @@ type Pages = {
 };
 /** The clan's own banner: its picture (drawn in its colours without one) and its shape. */
 type ClanBanner = { banner?: string; shape?: string };
-/** Settings for the whole site: the clan's own banner, and poles over every banner. */
-type Site = { banners?: { clan?: ClanBanner; poles?: boolean } };
+/** Settings for the whole site: the clan's own banner, poles over every banner, and whether the site shows the Flokkr. */
+type Site = { banners?: { clan?: ClanBanner; poles?: boolean }; flokkr?: boolean };
 /** The words and pictures of the home page, the Jarldom and Ranks pages, and what Google shows (texts.json). */
 type Texts = {
   google: { title: string; description: string; picture?: string };
@@ -955,7 +955,7 @@ function unitForm(u: Fylki, parent?: Fylki) {
 /** Poles over the banners in the panel too, as on the site (class on <body>, global.css). */
 const showPoles = () => document.body.classList.toggle('banner-poles', data.site.banners?.poles === true);
 
-/** For every banner at once: poles over them. */
+/** For every banner at once: poles over them; and whether the site shows the Flokkr at all. */
 function bannerSettings() {
   const banners = (data.site.banners ??= {});
   return h(
@@ -963,6 +963,8 @@ function bannerSettings() {
     { class: 'banner-settings' },
     toggle(banners, 'poles', 'Banners on poles', showPoles),
     h('small', {}, 'Poles go over every banner on the site. Each banner picks its own shape in its form.'),
+    toggle(data.site, 'flokkr', 'Flokkr on the site'),
+    h('small', {}, 'Off, the Flokkr stay here to edit, but the site shows none of them: no pages, lists or map banners.'),
   );
 }
 

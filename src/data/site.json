@@ -3,5 +3,6 @@
     "clan": {
       "banner": "/img/fylki/volsung-clan.webp"
     }
-  }
+  },
+  "flokkr": false
 }
