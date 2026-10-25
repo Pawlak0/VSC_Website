@@ -167,6 +167,10 @@ const hex = (v?: string) => (/^#[0-9a-f]{6}$/i.test(v ?? '') ? v : undefined);
 const colorsOf = (c?: Partial<BannerColors>): BannerColors | undefined => (hex(c?.accent) ? { accent: c!.accent!, glow: hex(c?.glow) } : undefined);
 const shapeOf = (v?: string) => (SHAPES.some((s) => s.cut && s.id === v) ? v : undefined);
 
+/** Whether the site shows the Flokkr. Turned off in the site panel, they stay in fylki.json but no page, list, map or
+ * sitemap shows them. */
+export const flokkrShown = (siteSettings as { flokkr?: boolean }).flokkr === true;
+
 // Kept in fylki.json, which the site panel at /admin/ edits. A field the panel leaves out counts as empty,
 // and a row added without a name or picture is skipped.
 export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
@@ -179,7 +183,7 @@ export const fylki: Fylki[] = (fylkiList as Partial<Fylki>[])
     banner: f.banner || undefined,
     description: f.description || 'Description to come.',
     // A Flokkr used to be only a name; both forms still work.
-    flokkr: ((f.flokkr ?? []) as (Partial<Flokkr> | string)[])
+    flokkr: ((flokkrShown ? f.flokkr ?? [] : []) as (Partial<Flokkr> | string)[])
       .map((k) => (typeof k === 'string' ? { name: k } : k))
       .filter((k) => k?.name)
       .map((k) => ({

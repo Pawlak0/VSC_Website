@@ -8,7 +8,7 @@ import Lightbox from '../../components/Lightbox.astro';
 import Leadership from '../../components/Leadership.astro';
 import BackLink from '../../components/BackLink.astro';
 import Clansmen from '../../components/Clansmen.astro';
-import { DISCORD_URL, fylki, type Fylki } from '../../data/clan';
+import { DISCORD_URL, flokkrShown, fylki, type Fylki } from '../../data/clan';
 import { byTier, clansmenWith, withDiscord } from '../../lib/clansmen';
 
 export function getStaticPaths() {
@@ -38,17 +38,21 @@ const groups = byTier((members ?? []).filter((m) => !found.has(m.id)));
     </div>
   </section>
 
-  <section class="band">
-    <div class="wrap">
-      <div class="head" data-stagger>
-        <p class="eyebrow">Flokkr</p>
-        <h2>The bands of {f.name}</h2>
-      </div>
-      <div class="flokkr-row" data-reveal>
-        <FlokkrList fylki={f} />
-      </div>
-    </div>
-  </section>
+  {
+    flokkrShown && (
+      <section class="band">
+        <div class="wrap">
+          <div class="head" data-stagger>
+            <p class="eyebrow">Flokkr</p>
+            <h2>The bands of {f.name}</h2>
+          </div>
+          <div class="flokkr-row" data-reveal>
+            <FlokkrList fylki={f} />
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   <section>
     <div class="wrap">
