@@ -24,20 +24,19 @@
       {
         "name": "Persistent Bannerlord",
         "text": "One of the server's major factions. Daily player-led combat against other clans for resources, land and glory, fuelled by one of the strongest civilian divisions in the mod.",
-        "image": "/img/site/persistent-bannerlord.webp",
-        "alt": "The clan on the march across the desert"
+        "image": "/img/site/persistent-bannerlord.webp"
       },
       {
         "name": "Weekly Events",
         "text": "Three main events every week with hundreds of other players. All optional, so you play on your own schedule.",
         "image": "/img/bre-event.webp",
-        "alt": "The Völsung shieldwall clashing with another faction on a forest hill"
+        "alt": "BRE Sunday Event"
       },
       {
         "name": "Training",
         "text": "Several sessions a month on settings, combat mechanics and groupfighting, plus dedicated sessions for archers and cavalry.",
         "image": "/img/site/training.webp",
-        "alt": "Völsung shields locked together"
+        "alt": "VSC Training"
       },
       {
         "name": "Fieldbattles",
