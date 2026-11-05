@@ -182,6 +182,10 @@ async function read(token?: string): Promise<Lists | null> {
       }),
     );
     const profileList = [...profileOf.values()].sort(byName);
+    // A rank tag in a nickname that the Ranks page does not know, e.g. a new rank or a different spelling, would leave
+    // its holders Unranked.
+    const strays = [...new Set(listed.map((m) => nameOf(m).match(/\[([^\]]+)\]/)?.[1]?.trim()).filter((t): t is string => !!t && !rankNamed(t)))];
+    if (strays.length) console.log(`[discord] nickname tags not on the Ranks page: ${strays.join(', ')}`);
 
     const byRole = new Map<string, Profile[]>();
     for (const role of roles) {
@@ -242,7 +246,16 @@ const SHIELDWALL: Rank[] = [...shieldwall.flatMap((row) => [row.infantry, row.ar
 /** Every rank on the Ranks page, highest first. */
 const RANKS: Rank[] = [...tiers.flatMap((t) => t.ranks), ...SHIELDWALL];
 /** Names compared without accents, marks, spaces and case, so the role "Lǫgmaðr" is the rank "Lögmaðr" and "✦𝑪𝒖𝒓𝒖𝒏𝒊𝒓✦" is Curunir. */
-const fold = (s: string) => s.normalize('NFKD').replace(/\p{M}/gu, '').replace(/[^\p{L}\p{N}]+/gu, '').toLowerCase();
+// Letters such as ð and ø have no accent to strip, so they are spelled out: Discord's Fróðiskyti and Vörðr are the
+// Ranks page's Frodiskyti and Vördr.
+const SPELLED: Record<string, string> = { ð: 'd', þ: 'th', ø: 'o', æ: 'ae', œ: 'oe', ß: 'ss' };
+const fold = (s: string) =>
+  s
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[ðþøæœß]/g, (c) => SPELLED[c])
+    .replace(/[^\p{L}\p{N}]+/gu, '');
 const rankNamed = (name: string) => RANKS.find((r) => fold(r.name) === fold(name));
 
 const nameOf = (m: GuildMember) => m.nick || m.user.global_name || m.user.username;
