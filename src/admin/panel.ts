@@ -68,7 +68,7 @@ type Site = { banners?: { clan?: ClanBanner; poles?: boolean }; flokkr?: boolean
 /** The words and pictures of the home page, the Jarldom and Ranks pages, and what Google shows (texts.json). */
 type Texts = {
   google: { title: string; description: string; picture?: string };
-  hero: { picture?: string; alt?: string; eyebrow?: string; text?: string; facts?: string[] };
+  hero: { picture?: string; alt?: string; weather?: string; eyebrow?: string; text?: string; facts?: string[] };
   about: { eyebrow?: string; title: string; text?: string; pillars?: { name: string; text?: string; image?: string; alt?: string; video?: string }[] };
   week: { title: string; text?: string; events?: { day: string; name: string; text?: string; monthly?: boolean }[] };
   media: { eyebrow?: string; title: string; gamesText?: string; games?: { name: string; image?: string }[] };
@@ -1609,6 +1609,7 @@ function textsView() {
     part('Home page: top', 'The first screen of the home page, over the background picture.', (redraw) => [
       pagePicture(t.hero, 'picture', 'background', 'home-background', 'Across the whole screen, so a wide picture (16:9) at least 1920 pixels across. The text sits on the left, so keep what matters on the right.', redraw, false),
       field('What the background shows', input(t.hero, 'alt', { placeholder: 'For search engines and blind visitors.' })),
+      field('Moving over the picture', select(t.hero, 'weather', [['snow', 'Falling snow'], ['none', 'Nothing']], 'snow'), 'Visitors who turned animations off in their system see the picture still.'),
       field('Line over the clan name', input(t.hero, 'eyebrow')),
       field('Text under the clan name', input(t.hero, 'text', { area: 2 })),
       h('div', { class: 'field' }, h('span', { class: 'label' }, 'Tags under the buttons'), rows(facts, (_, i) => [factInput(i)], () => '', 'tag', redraw, 'inline'), h('small', {}, 'A number at the start, like 3+ or 500+, is written in bold.')),

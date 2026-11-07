@@ -7,6 +7,7 @@
   "hero": {
     "picture": "/img/hero-snow-shieldwall.webp",
     "alt": "Painting of a Völsung shieldwall under the serpent banner in a snowy forest",
+    "weather": "snow",
     "eyebrow": "Mount & Blade II: Bannerlord · EU",
     "text": "A community of Mount & Blade veterans who fight in Bannerlord's biggest events and open world mods.",
     "facts": [
