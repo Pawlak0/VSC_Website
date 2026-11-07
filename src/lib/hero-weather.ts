@@ -1,5 +1,6 @@
-// Weather over the home page's hero picture, chosen in the site panel (Texts, hero): snow drifting down, or sparks
-// rising as from fires out of sight below. It is drawn on a canvas between the picture's shade and the text, and stops
+// Weather over the home page's hero picture, chosen in the site panel (Texts, Home page: top): snow drifting down.
+// Sparks rising as from fires out of sight below are kept here too, but Pawlak left them out of the panel for now
+// (2026-11-07) to maybe use somewhere else later. It is drawn on a canvas between the picture's shade and the text, and stops
 // while the hero is scrolled away or the tab is hidden. Base.astro only allows it for visitors who have not asked for
 // less motion.
 
