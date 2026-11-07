@@ -30,6 +30,8 @@ const knownEvents = JSON.stringify(Object.fromEntries(events.map((e) => [e.name.
 const homeVideos = (await videoCards(videos)).filter((v) => v.home);
 
 const { hero, about, week, media, join } = texts;
+// What moves over the hero picture, chosen in the panel (Texts, Home page: top).
+const weather = (hero as { weather?: string }).weather ?? 'snow';
 // A number at the start of a fact, like the 3+ of "3+ weekly events", is written in bold.
 const fact = (f: string) => f.match(/^(\d[\d.,]*\+?)\s+(.*)$/)?.slice(1) ?? [null, f];
 
@@ -47,6 +49,7 @@ const platform = (url: string) => {
   </script>
   <header class="hero" id="top">
     {hero.picture && <img class="bg" src={hero.picture} fetchpriority="high" alt={hero.alt ?? ''} />}
+    {weather !== 'none' && <canvas class="weather" data-weather={weather} aria-hidden="true"></canvas>}
     <div class="wrap" data-stagger>
       {hero.eyebrow && <p class="eyebrow">{hero.eyebrow}</p>}
       <h1><small>The</small>Völsung Clan</h1>
@@ -259,7 +262,12 @@ const platform = (url: string) => {
 
 <script>
   import { inviteApi } from '../lib/discord';
+  import { heroWeather, type Weather } from '../lib/hero-weather';
   import { API_URL } from '../lib/members';
+
+  // Snow or sparks over the hero, unless the visitor asked for less motion (html.motion, set in Base.astro).
+  const sky = document.querySelector<HTMLCanvasElement>('.hero canvas.weather');
+  if (sky && document.documentElement.classList.contains('motion')) heroWeather(sky, sky.dataset.weather as Weather);
 
   // Refresh the Discord counts in the hero. If Discord does not answer, the numbers from the build stay.
   const live = document.querySelector<HTMLAnchorElement>('.live[data-invite]');
@@ -368,6 +376,9 @@ const platform = (url: string) => {
     .hero img.bg { object-position: 78% 50%; }
     .hero::after { background: linear-gradient(0deg, var(--pitch) 0%, transparent 35%), color-mix(in srgb, var(--shade) 75%, transparent); }
   }
+  /* Snow or sparks over the picture (src/lib/hero-weather.ts), above its shade and under the text. */
+  .hero canvas.weather { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .hero > .wrap { position: relative; }
   /* As a grid item with auto margins the wrap would shrink to its text; full width keeps it in line with the logo. */
   .hero .wrap { width: 100%; padding-block: clamp(72px, 12vw, 150px) clamp(56px, 8vw, 96px); display: grid; gap: 26px; }
   .hero h1 { font-family: var(--f-title); font-weight: 400; font-size: clamp(52px, 9.4vw, 124px); letter-spacing: 0.02em; line-height: 0.92; max-width: 9ch; }

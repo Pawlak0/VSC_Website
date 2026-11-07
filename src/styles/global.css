@@ -167,6 +167,11 @@ a.bannerframe:hover b { color: var(--gold); }
   background: linear-gradient(90deg, var(--gold) 0 6%, #5b4529 6% 94%, var(--gold) 94%);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
 }
+/* A banner moving in the wind (src/lib/banner-wave.ts): its picture is drawn on a canvas over the cloth, with room at
+   the sides and below to swing, and the still cloth underneath is hidden once the canvas has drawn. */
+.banner > canvas.wave { position: absolute; top: 0; left: -5%; width: 110%; height: 104%; pointer-events: none; }
+.banner-poles .banner > canvas.wave { top: 7%; height: 97%; }
+.banner.waving > .cloth { opacity: 0; }
 /* A banner lit in its own colours (Banner.astro), wherever a Fylki or Flokkr shows it. A drop shadow rather than a box
    shadow, so the light follows the banner's shape. */
 .banner.glows { filter: drop-shadow(0 0 40px color-mix(in srgb, var(--glow) 45%, transparent)); }

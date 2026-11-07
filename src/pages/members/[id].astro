@@ -104,6 +104,8 @@ const top = p.ranks[0];
   .who { display: flex; flex-wrap: wrap; align-items: center; gap: clamp(20px, 3vw, 36px); flex: 1 1 320px; min-width: 0; }
   .face { width: clamp(96px, 12vw, 136px); height: clamp(96px, 12vw, 136px); flex: none; border-radius: 50%; border: 2px solid var(--gold); box-shadow: 0 0 0 6px color-mix(in srgb, var(--gold) 14%, transparent); object-fit: cover; background: var(--field); display: grid; place-items: center; }
   .face .emblem { width: 34%; opacity: 0.5; }
+  /* The face flies here from the member list it was clicked in (Base.astro). */
+  .face { view-transition-name: face; }
   .txt { display: grid; gap: 12px; flex: 1 1 240px; min-width: 0; }
   h1 { font-size: clamp(34px, 6vw, 72px); font-weight: 900; letter-spacing: 0.05em; overflow-wrap: anywhere; }
   .rank { display: flex; align-items: center; gap: 10px; font-family: var(--f-display); font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
