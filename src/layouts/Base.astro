@@ -158,14 +158,10 @@ const clanData = {
     </button>
 
     <script>
-      import { waveBanners } from '../lib/banner-wave';
       import { act, maybeSignedIn, whoAmI } from '../lib/members';
       import { plainName } from '../lib/names';
 
       const root = document.documentElement;
-
-      // Banners move in the wind, unless the visitor asked for less motion.
-      if (root.classList.contains('motion')) waveBanners();
 
       // A face in a member list flies into the profile it opens (the profile's own face is named "face" in its styles).
       addEventListener('pageswap', (e) => {
